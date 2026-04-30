@@ -1262,9 +1262,9 @@ async def verify_identity(payload: Dict[str, Any]):
 async def serve_fact_wars():
     try:
         current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "fact_wars.html", "r", encoding="utf-8") as f:
-        with open("static/fact_wars.html", encoding="utf-8") as f:
-            return HTMLResponse(f.read())
+        file_path = current_dir / "static" / "fact_wars.html"
+        with open(file_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="fact_wars.html missing")
 
