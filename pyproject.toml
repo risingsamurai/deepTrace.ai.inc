@@ -3,31 +3,36 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rcaagent-env"
+name = "deeptrace-ai-inc"
 version = "2.0.0"
-description = "OpenEnv-compatible simulation environment for SRE root-cause analysis tasks."
+description = "Autonomous Deep Research Agent with Lie Detection and Fact Wars."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-  { name = "Sujalk123" }
+  { name = "Atharv Kitwadkar" }
 ]
 dependencies = [
   "fastapi>=0.111",
   "uvicorn[standard]>=0.30",
   "pydantic>=2.7",
   "python-dotenv>=1.0",
-  "openenv>=0.1.0",
-  "openenv-core>=0.1.0"
+  "google-generativeai",
+  "firecrawl-py",
+  "supabase",
+  "weasyprint",
+  "httpx"
 ]
-
-[project.scripts]
-server = "server.app:main"
 
 [tool.setuptools]
 include-package-data = true
 
-# ADD THIS SECTION TO FIX THE BUILD ERROR
+# This forces setuptools to see the server folder as the package source
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["server*"]
+
+# Critical: This tells uv/setuptools NOT to try and install 
+# the project itself as an editable package during build.
+[tool.uv]
+package = false
