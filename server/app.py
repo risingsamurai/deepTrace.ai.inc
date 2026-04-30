@@ -294,28 +294,37 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
 # HTML file resolver — bulletproof for Vercel.
 #
 # BASE_DIR = Path(__file__).resolve().parent   →  /var/task/server/  on Vercel
+# PARENT   = BASE_DIR.parent                  →  /var/task/          on Vercel
 #
-# Search order:
-#   1. BASE_DIR / public / <file>          (primary — co-located with app.py)
-#   2. BASE_DIR / static / <file>          (secondary — static assets)
-#   3. /var/task/server/public / <file>    (hardcoded Vercel Lambda fallback)
+# Search order covers EVERY possible Vercel layout:
+#   1. BASE_DIR / public / <file>               server/public/index.html
+#   2. BASE_DIR / static / <file>               server/static/index.html
+#   3. PARENT  / public / <file>                public/index.html  (flattened)
+#   4. PARENT  / server / public / <file>       server/public/     (nested)
+#   5. /var/task/server/public / <file>          hardcoded fallback
+#   6. /var/task/public / <file>                 hardcoded fallback (flat)
+#   7. /var/task / <file>                        absolute last resort
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
-_VERCEL_FALLBACK = Path("/var/task/server/public")
+_PARENT  = BASE_DIR.parent
 
 def _find_html(filename: str) -> str:
-    """Locate an HTML file. Checks co-located dirs first, then Vercel fallback."""
+    """Locate an HTML file. Exhaustive search for Vercel compatibility."""
     candidates = [
         BASE_DIR / "public" / filename,
         BASE_DIR / "static" / filename,
-        _VERCEL_FALLBACK / filename,
+        _PARENT / "public" / filename,
+        _PARENT / "server" / "public" / filename,
+        Path("/var/task/server/public") / filename,
+        Path("/var/task/public") / filename,
+        Path("/var/task") / filename,
     ]
     for p in candidates:
         if p.exists():
             with open(p, "r", encoding="utf-8") as f:
                 return f.read()
     raise FileNotFoundError(
-        f"{filename} not found. BASE_DIR={BASE_DIR}. "
+        f"{filename} not found. BASE_DIR={BASE_DIR}, PARENT={_PARENT}. "
         f"Tried: {[str(c) for c in candidates]}"
     )
 

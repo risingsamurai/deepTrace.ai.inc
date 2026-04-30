@@ -7,6 +7,10 @@
         "includeFiles": [
           "server/public/**",
           "server/static/**",
+          "server/public/index.html",
+          "server/public/login.html",
+          "server/public/fact_wars.html",
+          "server/static/neural-bg.js",
           "server/*.py",
           "models.py",
           "research/**",
