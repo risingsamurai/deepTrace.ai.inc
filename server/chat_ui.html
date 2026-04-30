@@ -1172,6 +1172,7 @@
   <script>
     let depth = 'standard', sessionId = 'dt-' + crypto.randomUUID().slice(0, 8), lastReport = null, mode = 'research', ghostMode = false;
     let activeStream = null;
+    let isRunning = false;
     let liveMonitorInterval = null;
     let liveMonitorQuery = null;
     let liveMonitorLastResults = [];
@@ -1286,12 +1287,16 @@
       const btn = document.getElementById('exec-btn');
       const q = inp.value.trim();
       if (!q) return;
+      if (isRunning) return; // prevent double-execution
 
       // Kill any existing stream before starting new one
       if (activeStream) {
         try { activeStream.close(); } catch (e) { }
         activeStream = null;
       }
+
+      isRunning = true;
+      let streamClosed = false; // guard against spurious onerror after done
 
       document.getElementById('empty').style.display = 'none';
       const prevVal = inp.value;
@@ -1307,11 +1312,16 @@
       let srcTotal = 0;
 
       function resetUI() {
-        inp.disabled = false;
-        btn.disabled = false;
-        btn.textContent = 'EXECUTE';
-        inp.focus();
-        activeStream = null;
+        isRunning = false;
+        streamClosed = true;
+        const _inp = document.getElementById('q-input');
+        const _btn = document.getElementById('exec-btn');
+        if (_inp) { _inp.disabled = false; _inp.focus(); }
+        if (_btn) { _btn.disabled = false; _btn.textContent = 'EXECUTE'; }
+        if (activeStream) {
+          try { activeStream.close(); } catch (e) { }
+          activeStream = null;
+        }
       }
 
       const url = '/research/stream?query=' + encodeURIComponent(prevVal) +
@@ -1320,10 +1330,13 @@
       activeStream = new EventSource(url);
 
       activeStream.onmessage = function (e) {
+        if (streamClosed) return; // ignore messages after stream was closed
         try {
           const d = JSON.parse(e.data);
           if (d.status === 'done') {
+            streamClosed = true;
             activeStream.close();
+            activeStream = null;
             lastReport = d.report;
             renderFullReport(d.report);
             resetUI();
@@ -1331,7 +1344,9 @@
             return;
           }
           if (d.status === 'error') {
+            streamClosed = true;
             activeStream.close();
+            activeStream = null;
             addStep(d, 'error');
             resetUI();
             return;
@@ -1349,7 +1364,10 @@
       };
 
       activeStream.onerror = function () {
+        if (streamClosed) return; // done already handled — ignore reconnect error
+        streamClosed = true;
         try { activeStream.close(); } catch (e) { }
+        activeStream = null;
         addStep({ step: '?', timestamp: '', status: 'error', message: 'Connection lost. Click Execute to retry.' }, 'error');
         resetUI();
       };
@@ -1447,7 +1465,7 @@
       else { srcs.forEach((c, i) => { var url = c.url || c.link || c || ''; var title = c.title || c.name || (url ? getDomain(url) : 'Source ' + (i + 1)); var rel = c.relevance_score || c.score || 0.8; var domain = url ? getDomain(url) : 'unknown'; var archived = c.archived ? '<span class="badge-archived" title="Original page unavailable. Showing Wayback snapshot">ARCHIVED</span>' : ''; var fresh = c.freshness ? '<span class="fresh-' + esc(c.freshness) + '">' + esc(c.freshness) + '</span>' : ''; html += '<div class="src-row"><span>' + esc(domain) + ' ' + archived + '</span><span>' + esc(title) + ' ' + fresh + ' <button class="mini-btn" onclick="traceSource(\'' + esc(url) + '\')">🔍 TRACE</button></span><span><div class="rel-track"><div class="rel-fill" style="width:' + Math.round(rel * 100) + '%"></div></div></span><a href="' + esc(url) + '" target="_blank">' + esc(domain) + '</a></div>' }) }
       html += '</div></div>';
       if (r.conflicts && r.conflicts.length && r.conflicts[0]) { html += '<div class="card"><div class="card-title">CONFLICTS</div>'; r.conflicts.forEach(c => { html += '<div style="font-size:13px;color:#f0883e;padding:4px 0">' + esc(c) + '</div>' }); html += '</div>' }
-      if (r.suggested_followups && r.suggested_followups.length) { html += '<div class="card"><div class="card-title">FOLLOW-UP QUERIES</div><div style="display:flex;flex-direction:column;gap:6px">'; r.suggested_followups.forEach(f => { html += '<div class="followup" onclick="useFollowup(this)">' + esc(f) + '</div>' }); html += '</div></div>' }
+      if (r.suggested_followups && r.suggested_followups.length) { html += '<div class="card"><div class="card-title">FOLLOW-UP QUERIES</div><div style="display:flex;flex-direction:column;gap:6px">'; r.suggested_followups.forEach(f => { html += '<div class="followup" data-followup-query="' + esc(f) + '">' + esc(f) + '</div>' }); html += '</div></div>' }
       const confScore = extractConfidenceScore(r);
       const confText = r.confidence_assessment ?? r.confidence_text ?? r.assessment ?? r.confidence_explanation ?? '';
       html += '<div id="confidence-card">' + renderConfidence(confScore, confText) + '</div>';
@@ -1460,7 +1478,24 @@
       if (!consensusData) fetchConsensus(r);
       loadPredictions();
     }
-    function useFollowup(el) { document.getElementById('q-input').value = el.textContent; setMode('research'); exec() }
+    function useFollowup(el) {
+      const q = el.dataset.followupQuery || el.textContent;
+      const inp = document.getElementById('q-input');
+      if (inp) { inp.value = q; inp.disabled = false; }
+      const btn = document.getElementById('exec-btn');
+      if (btn) { btn.disabled = false; btn.textContent = 'EXECUTE'; }
+      isRunning = false; // ensure state is clean before re-executing
+      setMode('research');
+      exec();
+    }
+    // Event delegation: handle follow-up button clicks on dynamically rendered content
+    document.getElementById('center').addEventListener('click', function (e) {
+      const followup = e.target.closest('.followup[data-followup-query]');
+      if (followup) {
+        e.preventDefault();
+        useFollowup(followup);
+      }
+    });
     function renderConsensus(consensus) {
       if (!consensus) return '<div class="card">Consensus data unavailable.</div>';
       const overall = parseInt(consensus.overall) || 0;
