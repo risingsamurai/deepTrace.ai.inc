@@ -26,3 +26,8 @@ server = "server.app:main"
 
 [tool.setuptools]
 include-package-data = true
+
+# ADD THIS SECTION TO FIX THE BUILD ERROR
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["server*"]
