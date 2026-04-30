@@ -1,9 +1,10 @@
 {
-  "functions": {
-    "server/app.py": {
-      "runtime": "vercel-python@0.1.1"
+  "builds": [
+    {
+      "src": "server/app.py",
+      "use": "@vercel/python"
     }
-  },
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
