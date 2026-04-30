@@ -276,60 +276,63 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
     return enriched
 
 # ---------------------------------------------------------------------------
-# Resolve the project root once so all HTML routes use absolute paths.
-# On Vercel the CWD changes, so Path(__file__) is the only stable anchor.
+# Resolve base directories once.  On Vercel the CWD and __file__ layout can
+# differ from local dev, so we search from every plausible anchor.
 # ---------------------------------------------------------------------------
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_SERVER_DIR  = Path(__file__).resolve().parent           # …/server/
+_PROJECT_ROOT = _SERVER_DIR.parent                       # …/deeptrace.ai/
+_CWD         = Path.cwd()                                # whatever Vercel sets
 
-def _find_html(*candidates: Path) -> str:
-    """Return the contents of the first file that exists, or raise."""
-    for p in candidates:
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                return f.read()
-    raise FileNotFoundError(f"None found: {[str(c) for c in candidates]}")
+_SEARCH_BASES = list(dict.fromkeys([                      # deduplicated, ordered
+    _PROJECT_ROOT,
+    _SERVER_DIR,
+    _CWD,
+]))
+
+def _find_html(*relative_paths: str) -> str:
+    """Try each relative path under every search base.  Return file contents
+    of the first hit, or raise with a diagnostic listing of every path tried."""
+    tried = []
+    for base in _SEARCH_BASES:
+        for rel in relative_paths:
+            candidate = base / rel
+            tried.append(str(candidate))
+            if candidate.exists():
+                with open(candidate, "r", encoding="utf-8") as f:
+                    return f.read()
+    raise FileNotFoundError(
+        f"HTML not found.  Tried {len(tried)} paths: {tried}"
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
     try:
-        return _find_html(
-            _PROJECT_ROOT / "public" / "index.html",
-            _PROJECT_ROOT / "server" / "chat_ui.html",
-        )
+        return _find_html("public/index.html", "server/chat_ui.html", "chat_ui.html")
     except Exception as e:
-        return f"<html><body><h1>Error loading landing page</h1><p>Error: {str(e)}</p></body></html>"
+        return f"<html><body><h1>Error loading landing page</h1><p>{e}</p></body></html>"
 
 @app.get("/login", response_class=HTMLResponse)
 @app.get("/dark_ops_login.html", response_class=HTMLResponse)
 async def login_page():
     try:
-        return _find_html(
-            _PROJECT_ROOT / "public" / "login.html",
-            _PROJECT_ROOT / "server" / "dark_ops_login.html",
-        )
+        return _find_html("public/login.html", "server/dark_ops_login.html", "dark_ops_login.html")
     except Exception as e:
-        return f"<html><body><h1>Error loading login page</h1><p>Error: {str(e)}</p></body></html>"
+        return f"<html><body><h1>Error loading login page</h1><p>{e}</p></body></html>"
 
 @app.get("/chat_ui", response_class=HTMLResponse)
 async def chat_page():
     try:
-        return _find_html(
-            _PROJECT_ROOT / "public" / "index.html",
-            _PROJECT_ROOT / "server" / "chat_ui.html",
-        )
+        return _find_html("public/index.html", "server/chat_ui.html", "chat_ui.html")
     except Exception as e:
-        return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
+        return f"<html><body><h1>Error loading chat page</h1><p>{e}</p></body></html>"
 
 @app.get("/chat_ui.html", response_class=HTMLResponse)
 async def chat_page_html():
     try:
-        return _find_html(
-            _PROJECT_ROOT / "public" / "index.html",
-            _PROJECT_ROOT / "server" / "chat_ui.html",
-        )
+        return _find_html("public/index.html", "server/chat_ui.html", "chat_ui.html")
     except Exception as e:
-        return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
+        return f"<html><body><h1>Error loading chat page</h1><p>{e}</p></body></html>"
 
 
 @app.get("/health")
@@ -1282,8 +1285,7 @@ async def verify_identity(payload: Dict[str, Any]):
 async def serve_fact_wars():
     try:
         return HTMLResponse(content=_find_html(
-            _PROJECT_ROOT / "public" / "fact_wars.html",
-            _PROJECT_ROOT / "static" / "fact_wars.html",
+            "public/fact_wars.html", "static/fact_wars.html", "fact_wars.html"
         ))
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="fact_wars.html missing")
@@ -1321,6 +1323,8 @@ Write ONE sentence explaining why the winner had stronger evidence. Be specific.
 
 # Static file serving for assets in public/ (images, CSS, JS, etc.)
 # Mounted on /static to avoid shadowing API routes.
-_public_dir = _PROJECT_ROOT / "public"
-if _public_dir.is_dir():
-    app.mount("/static", StaticFiles(directory=str(_public_dir)), name="public-static")
+for _base in _SEARCH_BASES:
+    _pub = _base / "public"
+    if _pub.is_dir():
+        app.mount("/static", StaticFiles(directory=str(_pub)), name="public-static")
+        break
