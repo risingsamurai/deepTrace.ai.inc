@@ -5,8 +5,9 @@
       "use": "@vercel/python",
       "config": {
         "includeFiles": [
-          "public/**",
-          "server/**",
+          "server/public/**",
+          "server/static/**",
+          "server/*.py",
           "research/**",
           "mcp/**",
           "memory/**",
