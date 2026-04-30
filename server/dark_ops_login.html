@@ -456,7 +456,7 @@
     </div>
     <div class="input-group">
       <label>Gmail</label>
-      <input type="email" placeholder="agent@gmail.com" autocomplete="off">
+      <input type="email" id="login-email" placeholder="agent@gmail.com" autocomplete="off">
     </div>
     <div class="input-group">
       <label>Password</label>
@@ -485,7 +485,7 @@
     </div>
     <div class="input-group">
       <label>Full Name</label>
-      <input type="text" placeholder="AGENT NAME" autocomplete="off">
+      <input type="text" id="signup-name" placeholder="AGENT NAME" autocomplete="off">
     </div>
     <div class="input-group">
       <label>Gmail</label>
@@ -728,9 +728,16 @@
 
     // Auth handlers with validation
     document.getElementById('login-btn').addEventListener('click', function () {
-      const emailInput = document.querySelector('.login-container input[type="email"]');
-      const passwordInput = document.querySelector('.login-container input[type="password"]');
+      const emailInput = document.getElementById('login-email');
+      const passwordInput = document.getElementById('login-password');
       const rememberMeCheckbox = document.getElementById('remember-me');
+
+      // Null-check: abort if elements are missing
+      if (!emailInput || !passwordInput) {
+        console.error('[DeepTrace Auth] Missing login form elements:', { emailInput, passwordInput });
+        return;
+      }
+
       const email = emailInput.value;
       const password = passwordInput.value;
       const btn = this;
@@ -771,7 +778,7 @@
         localStorage.setItem('dt_user', email);
 
         // Remember me functionality
-        if (rememberMeCheckbox.checked) {
+        if (rememberMeCheckbox && rememberMeCheckbox.checked) {
           localStorage.setItem('dt_remember', 'true');
           localStorage.setItem('dt_saved_email', email);
         } else {
@@ -788,9 +795,16 @@
     });
 
     document.getElementById('create-btn').addEventListener('click', function () {
-      const nameInput = document.querySelector('#signupModal input[type="text"]');
+      const nameInput = document.getElementById('signup-name');
       const emailInput = document.getElementById('signup-email');
-      const passwordInput = document.querySelector('#signupModal input[type="password"]');
+      const passwordInput = document.getElementById('signup-password');
+
+      // Null-check: abort if elements are missing
+      if (!nameInput || !emailInput || !passwordInput) {
+        console.error('[DeepTrace Auth] Missing signup form elements:', { nameInput, emailInput, passwordInput });
+        return;
+      }
+
       const name = nameInput.value;
       const email = emailInput.value;
       const password = passwordInput.value;
@@ -855,10 +869,10 @@
     const rememberMe = localStorage.getItem('dt_remember');
     const savedEmail = localStorage.getItem('dt_saved_email');
     if (rememberMe === 'true' && savedEmail) {
-      const emailInput = document.querySelector('.login-container input[type="email"]');
+      const emailInput = document.getElementById('login-email');
       const rememberMeCheckbox = document.getElementById('remember-me');
-      emailInput.value = savedEmail;
-      rememberMeCheckbox.checked = true;
+      if (emailInput) emailInput.value = savedEmail;
+      if (rememberMeCheckbox) rememberMeCheckbox.checked = true;
     }
 
     // Password visibility toggle function
