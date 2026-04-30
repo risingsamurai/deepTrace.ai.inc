@@ -17,11 +17,13 @@ dependencies = [
   "uvicorn[standard]>=0.30",
   "pydantic>=2.7",
   "python-dotenv>=1.0",
+  "python-multipart>=0.0.6",
   "google-generativeai",
   "firecrawl-py",
   "supabase",
   "weasyprint",
-  "httpx"
+  "httpx",
+  "cerebras-cloud-sdk"
 ]
 
 [tool.setuptools]
