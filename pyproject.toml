@@ -23,7 +23,8 @@ dependencies = [
   "supabase",
   "weasyprint",
   "httpx",
-  "cerebras-cloud-sdk"
+  "cerebras-cloud-sdk",
+  "openenv>=0.1.0"
 ]
 
 [tool.setuptools]

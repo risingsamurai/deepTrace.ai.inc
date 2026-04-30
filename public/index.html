@@ -1111,8 +1111,7 @@
   <section id="main-ui" class="hidden">
     <div class="top"><span class="logo">DEEPTRACE</span><span class="sid" id="h-sid"></span><span class="rank-pill"
         id="rank-pill">ANALYST ◆</span><button class="act" onclick="doExport()">EXPORT</button><button class="act"
-        onclick="showLeaderboard()">LEADERBOARD</button><button
-        onclick="window.location.href='/fact-wars'" style="background:none;border:1px solid #222;
+        onclick="showLeaderboard()">LEADERBOARD</button><button onclick="window.location.href='/fact-wars'" style="background:none;border:1px solid #222;
   color:#888;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:11px;letter-spacing:.05em">
         ⚔ FACT WARS
       </button><button class="act" onclick="openLiveMonitor()">LIVE MONITOR</button><button class="act"
@@ -1216,7 +1215,182 @@
 </div>`; document.body.appendChild(modal)
     }
     function closeExportModal() { const modal = document.getElementById('export-modal'); if (modal) modal.remove() }
-    function downloadFormat(format) { const url = '/research/export?session_id=' + lastReport.session_id + '&format=' + format; const link = document.createElement('a'); link.href = url; link.download = 'deeptrace-report-' + lastReport.session_id.slice(0, 8) + '.' + (format === 'ppt' ? 'ppt.html' : format); document.body.appendChild(link); link.click(); document.body.removeChild(link); closeExportModal() }
+    
+    function updateMode(newMode, e) {
+      if (e) e.stopPropagation();
+      localStorage.setItem('dt_mode', newMode);
+      
+      const btnIcon = document.getElementById('mode-indicator-icon');
+      const btnText = document.getElementById('mode-indicator-text');
+      const dropBtn = document.getElementById('mode-indicator-btn');
+      
+      document.querySelectorAll('.mode-option').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.mode-option .check').forEach(el => el.classList.add('hidden'));
+      
+      if (newMode === 'ghost') {
+        btnIcon.textContent = '👻';
+        btnText.textContent = 'GHOST';
+        if (!ghostMode) toggleGhost();
+      } else {
+        btnIcon.textContent = '⚡';
+        btnText.textContent = newMode.toUpperCase();
+        if (ghostMode) toggleGhost();
+        const depthBtn = document.querySelector(`.d-btn[data-d="${newMode}"]`);
+        if (depthBtn) setDepth(depthBtn);
+      }
+      
+      const options = document.querySelectorAll('.mode-option');
+      for(let opt of options) {
+        if (opt.textContent.toLowerCase().includes(newMode)) {
+          opt.classList.add('active');
+          const check = opt.querySelector('.check');
+          if(check) check.classList.remove('hidden');
+        }
+      }
+      if(dropBtn) dropBtn.classList.remove('open');
+    }
+
+    async function downloadFormat(format) { 
+      if (!lastReport) return;
+      closeExportModal();
+      
+      if (format === 'markdown') {
+        const url = '/research/export?session_id=' + lastReport.session_id + '&format=markdown'; 
+        const link = document.createElement('a'); link.href = url; link.download = 'deeptrace-report-' + lastReport.session_id.slice(0, 8) + '.md'; 
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        return;
+      }
+      
+      if (format === 'pdf') {
+        const modeLabel = localStorage.getItem('dt_mode') || 'standard';
+        const pdfContent = document.createElement('div');
+        pdfContent.style.padding = '40px';
+        pdfContent.style.fontFamily = 'Inter, sans-serif';
+        pdfContent.style.color = '#333';
+        pdfContent.style.background = '#fff';
+        
+        let chartsHtml = '';
+        if (lastReport.research_dna) chartsHtml += renderDNA(lastReport.research_dna);
+        const cons = extractConsensus(lastReport);
+        if (cons) chartsHtml += renderConsensus(cons);
+
+        pdfContent.innerHTML = `
+          <div style="height:1050px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <h1 style="font-size:48px; color:#000; margin-bottom:20px;">DeepTrace Research</h1>
+            <h2 style="font-size:24px; color:#555; margin-bottom:40px; font-weight:normal;">${esc(lastReport.query)}</h2>
+            <div style="font-size:16px; color:#888; padding:10px 20px; border:2px solid #00ff88; border-radius:8px;">
+              DEPTH: ${modeLabel.toUpperCase()} | DATE: ${new Date().toLocaleDateString()}
+            </div>
+          </div>
+          <div style="page-break-before: always;"></div>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Executive Summary</h2>
+          <p style="font-size:14px; line-height:1.6; margin-bottom:30px;">${esc(lastReport.summary)}</p>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Key Findings</h2>
+          <ul style="font-size:14px; line-height:1.6; padding-left:20px; margin-bottom:30px;">
+            ${(lastReport.key_findings || []).map(f => `<li style="margin-bottom:10px;">${esc(f)}</li>`).join('')}
+          </ul>
+          <div style="page-break-before: always;"></div>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Advanced Analytics</h2>
+          <div style="background:#0a0a0a; color:#fff; padding:20px; border-radius:8px;">${chartsHtml}</div>
+          <div style="page-break-before: always;"></div>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Sources & Citations</h2>
+          <div style="font-size:12px; line-height:1.5;">
+            ${(lastReport.citations || lastReport.sources || []).map(c => {
+              const url = c.url || c.link || c || '';
+              const title = c.title || url;
+              return `<div style="margin-bottom:15px;"><strong>${esc(title)}</strong><br/><a href="${esc(url)}" style="color:#0066cc;">${esc(url)}</a></div>`;
+            }).join('')}
+          </div>
+        `;
+        
+        const opt = {
+          margin: [0.5, 0.5, 0.8, 0.5],
+          filename: `deeptrace-${lastReport.session_id.slice(0,8)}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(pdfContent).toPdf().get('pdf').then(function (pdf) {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(10);
+            pdf.setTextColor(150);
+            pdf.text('Page ' + i + ' of ' + totalPages, pdf.internal.pageSize.getWidth() - 1, pdf.internal.pageSize.getHeight() - 0.4);
+          }
+        }).save();
+        return;
+      }
+      
+      if (format === 'ppt') {
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_16x9';
+        pptx.defineSlideMaster({
+          title: 'MASTER_SLIDE',
+          background: { color: '0a0a0a' },
+          objects: [
+            { text: { text: 'DeepTrace Autonomous Research', options: { x: 0.5, y: 0.2, w: 5, h: 0.3, color: '00ff88', fontSize: 12 } } },
+            { rect: { x: 0, y: 0, w: '100%', h: 0.05, fill: { color: '00ff88' } } }
+          ]
+        });
+
+        const modeLabel = localStorage.getItem('dt_mode') || 'standard';
+
+        let slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+        slide.addText('RESEARCH REPORT', { x: 1, y: 2, w: '80%', fontSize: 44, color: 'ffffff', bold: true });
+        slide.addText(lastReport.query, { x: 1, y: 3, w: '80%', fontSize: 24, color: 'cccccc' });
+        slide.addText(`DEPTH: ${modeLabel.toUpperCase()} | ${new Date().toLocaleDateString()}`, { x: 1, y: 4, w: '80%', fontSize: 16, color: '00ff88' });
+
+        slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+        slide.addText('Executive Summary', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+        slide.addText(lastReport.summary, { x: 0.5, y: 1.5, w: '90%', fontSize: 18, color: 'ffffff' });
+
+        (lastReport.key_findings || []).forEach((finding, idx) => {
+          let fSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+          fSlide.addText(`Key Finding ${idx + 1}`, { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+          fSlide.addText(finding, { x: 0.5, y: 1.8, w: '90%', fontSize: 20, color: 'ffffff' });
+        });
+        
+        const offscreen = document.createElement('div');
+        offscreen.style.position = 'absolute';
+        offscreen.style.left = '-9999px';
+        offscreen.style.width = '800px';
+        offscreen.style.background = '#0a0a0a';
+        offscreen.style.color = '#fff';
+        offscreen.style.padding = '20px';
+        
+        let chartsHtml = '';
+        if (lastReport.research_dna) chartsHtml += renderDNA(lastReport.research_dna);
+        const cons = extractConsensus(lastReport);
+        if (cons) chartsHtml += renderConsensus(cons);
+        offscreen.innerHTML = chartsHtml;
+        document.body.appendChild(offscreen);
+
+        html2canvas(offscreen, { backgroundColor: '#0a0a0a' }).then(canvas => {
+          const imgData = canvas.toDataURL('image/png');
+          document.body.removeChild(offscreen);
+          
+          let cSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+          cSlide.addText('Advanced Analytics', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+          cSlide.addImage({ data: imgData, x: 1, y: 1.5, w: 8, h: (8 * canvas.height / canvas.width) });
+
+          let sSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+          sSlide.addText('Sources & Citations', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+          let yPos = 1.5;
+          (lastReport.citations || lastReport.sources || []).slice(0, 5).forEach(c => {
+            const url = c.url || c.link || c || '';
+            const title = (c.title || url).slice(0, 80);
+            sSlide.addText(title, { x: 0.5, y: yPos, w: '90%', fontSize: 14, color: 'ffffff', bold: true });
+            yPos += 0.3;
+            sSlide.addText(url, { x: 0.5, y: yPos, w: '90%', fontSize: 12, color: '00ff88', hyperlink: { url: url } });
+            yPos += 0.5;
+          });
+
+          pptx.writeFile({ fileName: `deeptrace-${lastReport.session_id.slice(0,8)}.pptx` });
+        });
+      }
+    }
+
     async function getShareLink() { try { const r = await fetch('/research/share/' + lastReport.session_id); const d = await r.json(); if (d.share_url) { navigator.clipboard.writeText(d.share_url); alert('Share link copied to clipboard!') } else alert('Failed to generate share link') } catch (e) { alert('Error generating share link') } closeExportModal() }
     function applyChip(el) { document.getElementById('q-input').value = el.textContent }
 

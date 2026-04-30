@@ -275,6 +275,7 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
         )
     return enriched
 
+<<<<<<< HEAD
 @app.get("/", response_class=HTMLResponse)
 async def root():
     try:
@@ -311,6 +312,9 @@ async def chat_page_html():
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
+=======
+
+>>>>>>> 3e9b7f153fab2a6ca9c15927c3d2e4e00d8cc4db
 
 @app.get("/health")
 async def health():
@@ -1258,6 +1262,7 @@ async def verify_identity(payload: Dict[str, Any]):
     return {"ok": True, "request": row}
 
 
+<<<<<<< HEAD
 @app.get("/fact-wars")
 async def serve_fact_wars():
     try:
@@ -1267,6 +1272,9 @@ async def serve_fact_wars():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="fact_wars.html missing")
+=======
+
+>>>>>>> 3e9b7f153fab2a6ca9c15927c3d2e4e00d8cc4db
 
 
 @app.post("/factwars/judge")
@@ -1297,3 +1305,9 @@ Write ONE sentence explaining why the winner had stronger evidence. Be specific.
         reason = f"The {winner} side presented stronger evidence with higher source confidence."
 
     return {"winner": winner, "for_score": for_score, "against_score": against_score, "reason": reason}
+
+import os
+from fastapi.staticfiles import StaticFiles
+
+if os.path.isdir("public"):
+    app.mount("/", StaticFiles(directory="public", html=True), name="public")
