@@ -1,9 +1,24 @@
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
+# ---------------------------------------------------------------------------
+# CRITICAL: Ensure the project root is in sys.path so bare imports work.
+# On Vercel, __file__ is /var/task/server/app.py — Python only adds
+# /var/task/server/ to sys.path, but our modules (models, research, mcp, …)
+# live one level up at /var/task/.  This must run before ANY project import.
+# ---------------------------------------------------------------------------
+_THIS_FILE   = Path(__file__).resolve()
+_SERVER_DIR  = _THIS_FILE.parent              # …/server/
+_PROJECT_ROOT = _SERVER_DIR.parent             # …/deeptrace.ai/ or /var/task/
+
+for _p in [str(_PROJECT_ROOT), str(_SERVER_DIR)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 # Load .env BEFORE any module imports that read env vars
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv(_PROJECT_ROOT / ".env")
 load_dotenv()
 
 import uuid
@@ -276,17 +291,21 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
     return enriched
 
 # ---------------------------------------------------------------------------
-# Resolve base directories once.  On Vercel the CWD and __file__ layout can
-# differ from local dev, so we search from every plausible anchor.
+# HTML file resolver — must work in ALL environments:
+#   Local dev:  __file__ = C:\…\deeptrace.ai\server\app.py
+#   Vercel:     __file__ = /var/task/server/app.py   (CWD = /var/task)
+#
+# Search bases are tried in priority order.  For each base we try every
+# relative path the caller provides.  First hit wins.
 # ---------------------------------------------------------------------------
-_SERVER_DIR  = Path(__file__).resolve().parent           # …/server/
-_PROJECT_ROOT = _SERVER_DIR.parent                       # …/deeptrace.ai/
-_CWD         = Path.cwd()                                # whatever Vercel sets
+_VERCEL_ROOT = Path("/var/task")
+_CWD         = Path.cwd()
 
-_SEARCH_BASES = list(dict.fromkeys([                      # deduplicated, ordered
-    _PROJECT_ROOT,
-    _SERVER_DIR,
-    _CWD,
+_SEARCH_BASES = list(dict.fromkeys([           # deduplicated, ordered
+    _SERVER_DIR,       # highest priority: files co-located next to app.py
+    _PROJECT_ROOT,     # standard layout:  project_root/public/…
+    _VERCEL_ROOT,      # Vercel's fixed lambda root
+    _CWD,              # whatever the runtime sets as CWD
 ]))
 
 def _find_html(*relative_paths: str) -> str:
@@ -301,7 +320,8 @@ def _find_html(*relative_paths: str) -> str:
                 with open(candidate, "r", encoding="utf-8") as f:
                     return f.read()
     raise FileNotFoundError(
-        f"HTML not found.  Tried {len(tried)} paths: {tried}"
+        f"HTML not found. SERVER_DIR={_SERVER_DIR}, PROJECT_ROOT={_PROJECT_ROOT}, "
+        f"CWD={_CWD}. Tried {len(tried)} paths: {tried}"
     )
 
 
@@ -338,6 +358,24 @@ async def chat_page_html():
 @app.get("/health")
 async def health():
     return {"status": "ok", "agent": "DeepTrace", "version": "2.0.0"}
+
+@app.get("/debug/paths")
+async def debug_paths():
+    """Diagnostic endpoint — shows the runtime file layout on Vercel."""
+    import glob
+    html_files = []
+    for base in _SEARCH_BASES:
+        pattern = str(base / "**" / "*.html")
+        html_files.extend(glob.glob(pattern, recursive=True))
+    return {
+        "__file__": str(_THIS_FILE),
+        "server_dir": str(_SERVER_DIR),
+        "project_root": str(_PROJECT_ROOT),
+        "cwd": str(_CWD),
+        "search_bases": [str(b) for b in _SEARCH_BASES],
+        "sys_path_first_5": sys.path[:5],
+        "html_files_found": html_files[:20],
+    }
 
 @app.post("/research", response_model=ResearchReport)
 async def run_research(query: ResearchQuery):
@@ -1327,4 +1365,4 @@ for _base in _SEARCH_BASES:
     _pub = _base / "public"
     if _pub.is_dir():
         app.mount("/static", StaticFiles(directory=str(_pub)), name="public-static")
-        break
+        break
