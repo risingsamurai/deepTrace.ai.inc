@@ -279,7 +279,7 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
 async def root():
     try:
         current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "chat_ui.html", encoding='utf-8') as f:
+        with open(current_dir / "chat_ui.html", "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading landing page</h1><p>Error: {str(e)}</p></body></html>"
@@ -289,7 +289,7 @@ async def root():
 async def login_page():
     try:
         current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "dark_ops_login.html", encoding='utf-8') as f:
+        with open(current_dir / "dark_ops_login.html", "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading login page</h1><p>Error: {str(e)}</p></body></html>"
@@ -298,7 +298,7 @@ async def login_page():
 async def chat_page():
     try:
         current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "chat_ui.html", encoding='utf-8') as f:
+        with open(current_dir / "chat_ui.html", "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
@@ -307,7 +307,7 @@ async def chat_page():
 async def chat_page_html():
     try:
         current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "chat_ui.html", encoding='utf-8') as f:
+        with open(current_dir / "chat_ui.html", "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
@@ -936,6 +936,7 @@ Academic sources: {source_titles.get("academic", [])}
 News sources: {source_titles.get("news", [])}
 Social sources: {source_titles.get("social", [])}
 """
+    groq_consensus_response = ""
     try:
         groq_consensus_response = await call_gemini_json(consensus_prompt, "You are a consensus analyst. Return only valid JSON with integer values 0-100.")
         # Strip markdown fences if present
@@ -959,7 +960,8 @@ Social sources: {source_titles.get("social", [])}
             consensus_data[key] = int(round(val))
         consensus_data["summary"] = str(consensus_data.get("summary") or "")
     except Exception as e:
-        print(f"Consensus parse error: {e}, raw: {groq_consensus_response[:200] if groq_consensus_response else 'none'}")
+        raw_preview = groq_consensus_response[:200] if groq_consensus_response else "none"
+        print(f"Consensus parse error: {e}, raw: {raw_preview}")
         consensus_data = {"overall": 0, "academic": 0, "news": 0, "social": 0, "summary": "Could not assess consensus."}
     return consensus_data
 
@@ -1260,7 +1262,7 @@ async def verify_identity(payload: Dict[str, Any]):
 async def serve_fact_wars():
     try:
         current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "fact_wars.html", encoding="utf-8") as f:
+        with open(current_dir / "fact_wars.html", "r", encoding="utf-8") as f:
             return HTMLResponse(f.read())
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="fact_wars.html missing")
