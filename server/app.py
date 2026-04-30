@@ -278,7 +278,8 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
 @app.get("/", response_class=HTMLResponse)
 async def root():
     try:
-        with open("server/chat_ui.html", encoding='utf-8') as f:
+        current_dir = Path(__file__).resolve().parent
+        with open(current_dir / "chat_ui.html", encoding='utf-8') as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading landing page</h1><p>Error: {str(e)}</p></body></html>"
@@ -287,7 +288,8 @@ async def root():
 @app.get("/dark_ops_login.html", response_class=HTMLResponse)
 async def login_page():
     try:
-        with open("server/dark_ops_login.html", encoding='utf-8') as f:
+        current_dir = Path(__file__).resolve().parent
+        with open(current_dir / "dark_ops_login.html", encoding='utf-8') as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading login page</h1><p>Error: {str(e)}</p></body></html>"
@@ -295,7 +297,8 @@ async def login_page():
 @app.get("/chat_ui", response_class=HTMLResponse)
 async def chat_page():
     try:
-        with open("server/chat_ui.html", encoding='utf-8') as f:
+        current_dir = Path(__file__).resolve().parent
+        with open(current_dir / "chat_ui.html", encoding='utf-8') as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
@@ -303,7 +306,8 @@ async def chat_page():
 @app.get("/chat_ui.html", response_class=HTMLResponse)
 async def chat_page_html():
     try:
-        with open("server/chat_ui.html", encoding='utf-8') as f:
+        current_dir = Path(__file__).resolve().parent
+        with open(current_dir / "chat_ui.html", encoding='utf-8') as f:
             return f.read()
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
@@ -570,6 +574,8 @@ async def export_research(session_id: str, format: str = "markdown"):
         # Convert markdown to PDF
         try:
             import weasyprint
+            # Move replacement outside of f-string to avoid SyntaxError
+            md_with_br = md.replace('\n', '<br>')
             html_content = f"""
             <!DOCTYPE html>
             <html>
@@ -584,7 +590,7 @@ async def export_research(session_id: str, format: str = "markdown"):
                 </style>
             </head>
             <body>
-                {md.replace('\n', '<br>')}
+                {md_with_br}
             </body>
             </html>
             """
@@ -679,6 +685,8 @@ async def view_shared_research(session_id: str):
     
     # Generate HTML for shared view
     md = format_report_markdown(report)
+    # Move replacement outside of f-string
+    md_with_br = md.replace('\n', '<br>')
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -701,7 +709,7 @@ async def view_shared_research(session_id: str):
             <p><strong>Confidence Score:</strong> {report.confidence_score}/10</p>
             <p><strong>Sources Analyzed:</strong> {report.sources_scraped}</p>
         </div>
-        {md.replace('\n', '<br>')}
+        {md_with_br}
     </body>
     </html>
     """
@@ -1251,7 +1259,8 @@ async def verify_identity(payload: Dict[str, Any]):
 @app.get("/fact-wars")
 async def serve_fact_wars():
     try:
-        with open("server/fact_wars.html", encoding="utf-8") as f:
+        current_dir = Path(__file__).resolve().parent
+        with open(current_dir / "fact_wars.html", encoding="utf-8") as f:
             return HTMLResponse(f.read())
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="fact_wars.html missing")
