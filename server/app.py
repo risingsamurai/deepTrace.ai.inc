@@ -293,38 +293,27 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
 # ---------------------------------------------------------------------------
 # HTML file resolver — bulletproof for Vercel.
 #
-# BASE_DIR = Path(__file__).resolve().parent   →  /var/task/server/  on Vercel
-# PARENT   = BASE_DIR.parent                  →  /var/task/          on Vercel
-#
-# Search order covers EVERY possible Vercel layout:
-#   1. BASE_DIR / public / <file>               server/public/index.html
-#   2. BASE_DIR / static / <file>               server/static/index.html
-#   3. PARENT  / public / <file>                public/index.html  (flattened)
-#   4. PARENT  / server / public / <file>       server/public/     (nested)
-#   5. /var/task/server/public / <file>          hardcoded fallback
-#   6. /var/task/public / <file>                 hardcoded fallback (flat)
-#   7. /var/task / <file>                        absolute last resort
+# Priority 1: Directly next to app.py  (server/index.html)
+# Priority 2: server/public/index.html  (subdirectory)
+# Priority 3: server/static/index.html  (subdirectory)
+# Priority 4: /var/task/server/index.html  (hardcoded Vercel path)
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
-_PARENT  = BASE_DIR.parent
 
 def _find_html(filename: str) -> str:
-    """Locate an HTML file. Exhaustive search for Vercel compatibility."""
+    """Locate an HTML file. Checks next to app.py first, then subdirs."""
     candidates = [
-        BASE_DIR / "public" / filename,
-        BASE_DIR / "static" / filename,
-        _PARENT / "public" / filename,
-        _PARENT / "server" / "public" / filename,
-        Path("/var/task/server/public") / filename,
-        Path("/var/task/public") / filename,
-        Path("/var/task") / filename,
+        BASE_DIR / filename,                          # RIGHT next to app.py
+        BASE_DIR / "public" / filename,               # server/public/
+        BASE_DIR / "static" / filename,               # server/static/
+        Path("/var/task/server") / filename,           # hardcoded Vercel
     ]
     for p in candidates:
         if p.exists():
             with open(p, "r", encoding="utf-8") as f:
                 return f.read()
     raise FileNotFoundError(
-        f"{filename} not found. BASE_DIR={BASE_DIR}, PARENT={_PARENT}. "
+        f"{filename} not found. BASE_DIR={BASE_DIR}. "
         f"Tried: {[str(c) for c in candidates]}"
     )
 

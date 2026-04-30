@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>DeepTrace — Fact Wars</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; color:#e5e5e5; font-family:'Courier New',monospace; min-height:100vh; }
+    .header { border-bottom:1px solid #1a1a1a; padding:16px 24px; display:flex; align-items:center; gap:16px; }
+    .logo { color:#00FF88; font-weight:700; font-size:16px; letter-spacing:.1em; }
+    .arena-title { color:#fff; font-size:13px; opacity:.6; }
+    .back-btn { margin-left:auto; background:none; border:1px solid #333; color:#888;
+      padding:6px 14px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:12px; }
+    .arena { display:grid; grid-template-columns:1fr 40px 1fr; gap:1px; background:#111; flex:1; min-height:calc(100vh - 56px); }
+    .side { background:#000; padding:24px; display:flex; flex-direction:column; gap:16px; }
+    .side.for { border-right:1px solid #1a1a1a; }
+    .side-label { font-size:10px; letter-spacing:.15em; padding:4px 10px; border-radius:2px; display:inline-block; }
+    .side.for .side-label { background:rgba(0,255,136,.1); color:#00FF88; border:1px solid rgba(0,255,136,.3); }
+    .side.against .side-label { background:rgba(239,68,68,.1); color:#ef4444; border:1px solid rgba(239,68,68,.3); }
+    .side-title { font-size:20px; font-weight:700; color:#fff; margin-top:4px; }
+    textarea { background:#0a0a0a; border:1px solid #222; color:#e5e5e5; padding:12px;
+      border-radius:4px; font-family:inherit; font-size:13px; resize:vertical; width:100%; outline:none; }
+    textarea:focus { border-color:#333; }
+    .run-btn { background:#00FF88; color:#000; border:none; padding:10px 20px; border-radius:4px;
+      cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; letter-spacing:.1em; width:100%; }
+    .run-btn:disabled { background:#1a1a1a; color:#555; cursor:not-allowed; }
+    .result-area { flex:1; background:#050505; border:1px solid #111; border-radius:4px;
+      padding:16px; font-size:12px; line-height:1.7; overflow-y:auto; min-height:200px; color:#ccc; }
+    .verdict-section { display:none; padding:24px; background:#050505; border-top:1px solid #1a1a1a; }
+    .verdict-card { border:1px solid #222; border-radius:8px; padding:24px; text-align:center; max-width:600px; margin:0 auto; }
+    .winner-badge { font-size:28px; font-weight:700; margin:8px 0; }
+    .win-for { color:#00FF88; }
+    .win-against { color:#ef4444; }
+    .judge-btn { background:#0a0a0a; border:1px solid #333; color:#ccc; padding:12px 32px;
+      border-radius:4px; cursor:pointer; font-family:inherit; font-size:13px; letter-spacing:.1em;
+      display:block; margin:0 auto; }
+    .judge-btn:hover { border-color:#555; color:#fff; }
+    .vs-divider { display:flex; align-items:center; justify-content:center; background:#000;
+      width:40px; font-size:11px; color:#555; letter-spacing:.2em; writing-mode:vertical-rl; }
+    .conf-bar { height:4px; border-radius:2px; background:#111; margin-top:8px; }
+    .conf-fill { height:100%; border-radius:2px; transition:width .5s; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">DT</span>
+    <span class="arena-title">FACT WARS ARENA</span>
+    <button class="back-btn" onclick="window.location.href='/'">← BACK</button>
+  </div>
+
+  <div style="display:flex;flex-direction:column;min-height:calc(100vh - 56px)">
+    <div class="arena">
+      <div class="side for">
+        <div>
+          <span class="side-label">CASE FOR</span>
+          <div class="side-title" id="for-title">State your position</div>
+        </div>
+        <textarea id="for-query" rows="3" placeholder="Enter your argument or query for this side..."></textarea>
+        <button class="run-btn" id="for-btn" onclick="runSide('for')">RUN RESEARCH FOR THIS SIDE</button>
+        <div class="result-area" id="for-result">
+          <span style="color:#333">Results will appear here after research runs...</span>
+        </div>
+        <div id="for-conf" style="display:none">
+          <div style="font-size:11px;color:#555;margin-bottom:4px">CONFIDENCE</div>
+          <div class="conf-bar"><div class="conf-fill" id="for-conf-fill" style="background:#00FF88"></div></div>
+          <div id="for-conf-val" style="font-size:12px;color:#00FF88;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="vs-divider">VS</div>
+
+      <div class="side against">
+        <div>
+          <span class="side-label">CASE AGAINST</span>
+          <div class="side-title" id="against-title">State opposing position</div>
+        </div>
+        <textarea id="against-query" rows="3" placeholder="Enter the opposing argument or query..."></textarea>
+        <button class="run-btn" id="against-btn" onclick="runSide('against')">RUN RESEARCH FOR THIS SIDE</button>
+        <div class="result-area" id="against-result">
+          <span style="color:#333">Results will appear here after research runs...</span>
+        </div>
+        <div id="against-conf" style="display:none">
+          <div style="font-size:11px;color:#555;margin-bottom:4px">CONFIDENCE</div>
+          <div class="conf-bar"><div class="conf-fill" id="against-conf-fill" style="background:#ef4444"></div></div>
+          <div id="against-conf-val" style="font-size:12px;color:#ef4444;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="judge-section" style="display:none;padding:24px;text-align:center;border-top:1px solid #111">
+      <button class="judge-btn" onclick="judgeWar()">⚖ SUBMIT TO JUDGE — DECLARE WINNER</button>
+    </div>
+
+    <div class="verdict-section" id="verdict-section">
+      <div class="verdict-card" id="verdict-card"></div>
+    </div>
+  </div>
+
+  <script>
+    const results = { for: null, against: null };
+
+    async function runSide(side) {
+      const query = document.getElementById(side + '-query').value.trim();
+      if (!query) return;
+
+      const btn = document.getElementById(side + '-btn');
+      const resultArea = document.getElementById(side + '-result');
+
+      btn.disabled = true;
+      btn.textContent = 'RESEARCHING...';
+      resultArea.innerHTML = '<span style="color:#00FF88">Initializing research...</span>';
+
+      document.getElementById(side + '-title').textContent =
+        side === 'for' ? 'FOR: ' + query.slice(0, 40) : 'AGAINST: ' + query.slice(0, 40);
+
+      try {
+        const evtSource = new EventSource('/research/stream?query=' +
+          encodeURIComponent(query) + '&max_sources=8&depth=standard');
+
+        evtSource.onmessage = function (e) {
+          const d = JSON.parse(e.data);
+          if (d.status === 'done') {
+            evtSource.close();
+            results[side] = d.report;
+            const r = d.report;
+            const conf = parseInt(r.confidence_score) || 0;
+            const summary = r.summary || r.findings?.[0]?.text || 'Research complete.';
+            const srcCount = (r.sources?.length || r.citations?.length || 0);
+
+            resultArea.innerHTML = `
+              <div style="color:#888;font-size:10px;margin-bottom:10px">${srcCount} SOURCES ANALYZED</div>
+              <div style="color:#e5e5e5;line-height:1.7;margin-bottom:12px">${summary}</div>
+              ${(r.findings || r.key_findings || []).slice(0, 3).map(f =>
+              `<div style="border-left:2px solid #222;padding:6px 10px;margin:6px 0;font-size:12px;color:#aaa">${f.text || f}</div>`
+            ).join('')}`;
+
+            document.getElementById(side + '-conf').style.display = 'block';
+            document.getElementById(side + '-conf-fill').style.width = conf + '%';
+            document.getElementById(side + '-conf-val').textContent = conf + '% CONFIDENCE';
+
+            btn.disabled = false;
+            btn.textContent = 'RE-RUN RESEARCH';
+
+            if (results.for && results.against) {
+              document.getElementById('judge-section').style.display = 'block';
+            }
+          } else if (d.status === 'error') {
+            evtSource.close();
+            resultArea.innerHTML = '<span style="color:#ef4444">Research failed. Try again.</span>';
+            btn.disabled = false;
+            btn.textContent = 'RUN RESEARCH FOR THIS SIDE';
+          } else {
+            resultArea.innerHTML = `<span style="color:#00FF88">◈ ${d.message || d.step || 'Processing...'}</span>`;
+          }
+        };
+
+        evtSource.onerror = function () {
+          evtSource.close();
+          resultArea.innerHTML = '<span style="color:#ef4444">Connection error. Try again.</span>';
+          btn.disabled = false;
+          btn.textContent = 'RUN RESEARCH FOR THIS SIDE';
+        };
+
+      } catch (err) {
+        resultArea.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>';
+        btn.disabled = false;
+        btn.textContent = 'RUN RESEARCH FOR THIS SIDE';
+      }
+    }
+
+    async function judgeWar() {
+      document.querySelector('.judge-btn').textContent = 'JUDGING...';
+      document.querySelector('.judge-btn').disabled = true;
+
+      try {
+        const resp = await fetch('/factwars/judge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            for_report: results.for,
+            against_report: results.against,
+            for_query: document.getElementById('for-query').value,
+            against_query: document.getElementById('against-query').value
+          })
+        });
+        const verdict = await resp.json();
+        renderVerdict(verdict);
+      } catch (e) {
+        alert('Judging failed: ' + e.message);
+        document.querySelector('.judge-btn').textContent = '⚖ SUBMIT TO JUDGE';
+        document.querySelector('.judge-btn').disabled = false;
+      }
+    }
+
+    function renderVerdict(v) {
+      const isFor = v.winner === 'for';
+      const card = document.getElementById('verdict-card');
+      card.innerHTML = `
+        <div style="font-size:10px;letter-spacing:.2em;color:#555;margin-bottom:8px">VERDICT</div>
+        <div class="winner-badge ${isFor ? 'win-for' : 'win-against'}">
+          ${isFor ? 'CASE FOR WINS' : 'CASE AGAINST WINS'}
+        </div>
+        <div style="font-size:13px;color:#888;margin:12px 0">${v.reason || 'Based on evidence strength and source quality.'}</div>
+        <div style="display:flex;gap:24px;justify-content:center;margin-top:16px;font-size:12px">
+          <div style="text-align:center">
+            <div style="color:#00FF88;font-size:20px;font-weight:700">${v.for_score || 0}</div>
+            <div style="color:#555">FOR SCORE</div>
+          </div>
+          <div style="text-align:center">
+            <div style="color:#ef4444;font-size:20px;font-weight:700">${v.against_score || 0}</div>
+            <div style="color:#555">AGAINST SCORE</div>
+          </div>
+        </div>
+        <button onclick="location.reload()" style="margin-top:20px;background:none;border:1px solid #333;
+          color:#888;padding:8px 20px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px">
+          NEW BATTLE
+        </button>`;
+      document.getElementById('verdict-section').style.display = 'block';
+      document.getElementById('verdict-section').scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

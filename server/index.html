@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>DeepTrace - Autonomous Deep Research Agent</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --border-dim: rgba(255, 255, 255, 0.12);
+      --accent-green: #00ff88;
+      --glow-green: 0 0 20px rgba(0, 255, 136, 0.32);
+    }
+
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #efefef
+    }
+
+    .hidden {
+      display: none !important
+    }
+
+    .shell-bg {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 20%, rgba(0, 207, 255, .08), transparent 38%), radial-gradient(circle at 20% 70%, rgba(255, 255, 255, .03), transparent 45%), #0a0a0a;
+      pointer-events: none
+    }
+
+    .orb {
+      position: fixed;
+      top: 110px;
+      left: 50%;
+      width: 150px;
+      height: 150px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #dff8ff 0, #8ad7ff 12%, #17385f 40%, #0b0f19 75%);
+      box-shadow: 0 0 50px rgba(0, 180, 255, .3), inset -20px -20px 40px rgba(0, 0, 0, .7);
+      animation: float 4s ease-in-out infinite;
+      z-index: 8;
+      pointer-events: none
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateX(-50%) translateY(0)
+      }
+
+      50% {
+        transform: translateX(-50%) translateY(10px)
+      }
+    }
+
+    #landing {
+      position: relative;
+      z-index: 10
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      background: #0d0e10;
+      padding: 20px 40px;
+      border-bottom: 1px solid #1e2124;
+      z-index: 20
+    }
+
+    .nav .brand {
+      font-size: 42px;
+      font-weight: 400;
+      line-height: .9
+    }
+
+    .hero {
+      padding: 46px 40px 80px;
+      min-height: 70vh;
+      background: #0d0e10
+    }
+
+    .hero h1 {
+      font-size: 74px;
+      line-height: .96;
+      font-weight: 400;
+      letter-spacing: -2px;
+      max-width: 1000px;
+      margin-bottom: 18px
+    }
+
+    .hero p {
+      font-size: 19px;
+      line-height: 1.4;
+      max-width: 980px;
+      color: #d3d3d3;
+      margin-bottom: 28px
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 14px
+    }
+
+    .btn {
+      border: 1px solid var(--border-dim);
+      padding: 10px 16px;
+      border-radius: 2px;
+      background: #000;
+      color: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      cursor: pointer
+    }
+
+    .btn:hover {
+      border-color: rgba(255, 255, 255, .65);
+      background: #1a1a1a
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 42px 40px;
+      background: #0a0a0a;
+      border-top: 1px solid #1e2124
+    }
+
+    .stat {
+      text-align: center
+    }
+
+    .stat .n {
+      font-size: 44px;
+      font-weight: 600
+    }
+
+    .stat .l {
+      color: #767676
+    }
+
+    .marquee {
+      background: #1e2124;
+      overflow: hidden;
+      white-space: nowrap;
+      padding: 16px 0
+    }
+
+    .marquee-track {
+      display: inline-flex;
+      gap: 42px;
+      animation: mar 28s linear infinite
+    }
+
+    @keyframes mar {
+      from {
+        transform: translateX(0)
+      }
+
+      to {
+        transform: translateX(-50%)
+      }
+    }
+
+    .section {
+      padding: 72px 0;
+      background: #0a0a0a
+    }
+
+    .heading {
+      font-size: 46px;
+      letter-spacing: -.9px;
+      padding: 0 40px;
+      margin-bottom: 48px
+    }
+
+    .platform-card {
+      display: flex;
+      height: 260px;
+      padding: 12px 0 90px;
+      border-top: .8px solid #f7f7f7;
+      transition: .25s
+    }
+
+    .platform-card:hover {
+      background: #f7f7f7;
+      color: #1e2124
+    }
+
+    .platform-left {
+      width: 50%;
+      display: flex;
+      gap: 38px;
+      padding: 0 40px
+    }
+
+    .platform-number {
+      width: 34%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between
+    }
+
+    .platform-title {
+      font-size: 20px;
+      line-height: 1.15
+    }
+
+    .platform-desc {
+      font-size: 16px;
+      line-height: 1.4;
+      color: #767676
+    }
+
+    .platform-right {
+      width: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px
+    }
+
+    .ghost {
+      font-size: 128px;
+      letter-spacing: -4px;
+      opacity: .1
+    }
+
+    .platform-card:hover .ghost {
+      opacity: 1
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 0 40px
+    }
+
+    .arch-card {
+      background: #f3f3f3;
+      color: #1e2124;
+      padding: 18px;
+      height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between
+    }
+
+    .arch-title {
+      font-size: 18px;
+      font-weight: 600
+    }
+
+    .arch-tech {
+      font-size: 16px
+    }
+
+    .arch-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .pill {
+      background: #1e2124;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 2px;
+      font-size: 12px
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 40px
+    }
+
+    .p-step {
+      text-align: center;
+      flex: 1
+    }
+
+    .p-num {
+      font-size: 13px;
+      color: #767676
+    }
+
+    .p-title {
+      font-size: 16px
+    }
+
+    #main-ui {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 15
+    }
+
+    .top {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-dim);
+      background: #0d1117
+    }
+
+    .top .logo {
+      font-size: 16px;
+      letter-spacing: .2em
+    }
+
+    .top .sid {
+      margin-left: auto;
+      font-size: 11px;
+      color: #8b949e;
+      font-family: "IBM Plex Mono", monospace
+    }
+
+    .top .act {
+      margin-left: 10px;
+      border: 1px solid var(--border-dim);
+      background: none;
+      color: #8b949e;
+      padding: 4px 8px;
+      border-radius: 2px;
+      cursor: pointer
+    }
+
+    .top .act:hover {
+      border-color: #58a6ff;
+      color: #58a6ff
+    }
+
+    .body-wrap {
+      display: flex;
+      flex: 1;
+      overflow: hidden
+    }
+
+    .left {
+      width: 230px;
+      border-right: 1px solid var(--border-dim);
+      background: #0d1117;
+      display: flex;
+      flex-direction: column
+    }
+
+    .ptitle {
+      font-size: 10px;
+      letter-spacing: .12em;
+      color: #8b949e;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between
+    }
+
+    .badge {
+      font-size: 10px;
+      color: #79c0ff
+    }
+
+    .session-list {
+      padding: 6px;
+      overflow: auto;
+      flex: 1
+    }
+
+    .s-item {
+      padding: 9px;
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      margin-bottom: 6px;
+      cursor: pointer
+    }
+
+    .s-item:hover {
+      border-color: #3f4854
+    }
+
+    .sq {
+      font-size: 12px;
+      color: #e6edf3
+    }
+
+    .sm {
+      font-size: 10px;
+      color: #8b949e;
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between
+    }
+
+    .clear-btn {
+      margin: 8px;
+      border: 1px solid var(--border-dim);
+      background: none;
+      color: #8b949e;
+      padding: 7px;
+      border-radius: 2px;
+      cursor: pointer
+    }
+
+    .center {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+      position: relative
+    }
+
+    .center::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .03) 0, rgba(255, 255, 255, .03) 1px, transparent 1px, transparent 3px);
+      opacity: .03
+    }
+
+    .empty-state {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: .85
+    }
+
+    .robot-avatar {
+      width: 108px;
+      height: 108px;
+      margin-bottom: 12px;
+      filter: drop-shadow(var(--glow-green));
+      animation: robotPulse 4s ease-in-out infinite
+    }
+
+    @keyframes robotPulse {
+
+      0%,
+      100% {
+        opacity: .85;
+        transform: translateY(0)
+      }
+
+      50% {
+        opacity: 1;
+        transform: translateY(-2px)
+      }
+    }
+
+    .empty-state h3 {
+      font-weight: 500;
+      letter-spacing: .12em
+    }
+
+    .empty-state p {
+      margin-top: 8px;
+      color: #8b949e;
+      max-width: 520px;
+      text-align: center
+    }
+
+    .chips {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center
+    }
+
+    .chip {
+      padding: 6px 10px;
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      background: none;
+      color: #8b949e;
+      cursor: pointer
+    }
+
+    .chip:hover {
+      border-color: #58a6ff;
+      color: #e6edf3
+    }
+
+    .right {
+      width: 280px;
+      border-left: 1px solid var(--border-dim);
+      background: #0d1117
+    }
+
+    .src-cards {
+      padding: 8px;
+      overflow: auto;
+      height: 100%
+    }
+
+    .src-card {
+      padding: 10px;
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      margin-bottom: 6px
+    }
+
+    .domain {
+      font-size: 12px;
+      font-weight: 600
+    }
+
+    .meta {
+      font-size: 10px;
+      color: #8b949e;
+      margin: 4px 0
+    }
+
+    .rel-bar {
+      height: 3px;
+      background: #161b22;
+      margin-bottom: 6px
+    }
+
+    .rel-bar .fill {
+      height: 100%;
+      background: #3fb950
+    }
+
+    .preview {
+      font-size: 11px;
+      color: #8b949e
+    }
+
+    .input {
+      border-top: 1px solid var(--border-dim);
+      padding: 8px 12px 10px;
+      background: #0d1117
+    }
+
+    .depth {
+      display: flex;
+      gap: 0;
+      align-items: center;
+      margin-bottom: 6px
+    }
+
+    .depth .est {
+      margin-left: 10px
+    }
+
+    .d-btn {
+      padding: 4px 12px;
+      border: 1px solid var(--border-dim);
+      border-right: 0;
+      background: none;
+      color: #8b949e;
+      border-radius: 0;
+      cursor: pointer
+    }
+
+    .d-btn:first-child {
+      border-top-left-radius: 2px;
+      border-bottom-left-radius: 2px
+    }
+
+    .d-btn:last-of-type {
+      border-right: 1px solid var(--border-dim);
+      border-top-right-radius: 2px;
+      border-bottom-right-radius: 2px
+    }
+
+    .d-btn.active {
+      background: #3f4854;
+      color: #fff
+    }
+
+    .est {
+      margin-left: auto;
+      font-size: 10px;
+      color: #8b949e;
+      font-family: "IBM Plex Mono", monospace
+    }
+
+    .in-row {
+      display: flex;
+      gap: 8px
+    }
+
+    #q-input {
+      flex: 1;
+      border: 1px solid var(--border-dim);
+      background: #161b22;
+      color: #e6edf3;
+      padding: 10px;
+      border-radius: 2px
+    }
+
+    #exec-btn {
+      padding: 10px 20px;
+      border: 1px solid var(--accent-green);
+      background: none;
+      color: var(--accent-green);
+      border-radius: 2px;
+      cursor: pointer
+    }
+
+    #exec-btn:hover {
+      background: #3fb950;
+      color: #0d1117
+    }
+
+    #exec-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed
+    }
+
+    .user-query {
+      color: #79c0ff;
+      font-family: "IBM Plex Mono", monospace;
+      border-bottom: 1px solid #21262d;
+      padding: 8px 0;
+      margin-bottom: 8px
+    }
+
+    .step-line {
+      display: flex;
+      gap: 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      padding: 5px 0
+    }
+
+    .sn {
+      color: #3fb950;
+      min-width: 62px
+    }
+
+    .st {
+      color: #8b949e;
+      min-width: 60px
+    }
+
+    .sb {
+      color: #bc8cff;
+      min-width: 90px
+    }
+
+    .sm-text {
+      color: #e6edf3;
+      flex: 1
+    }
+
+    .rpt {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px
+    }
+
+    .card {
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      background: #0d1117;
+      padding: 12px
+    }
+
+    .card-title {
+      font-size: 11px;
+      color: #8b949e;
+      letter-spacing: .2em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      font-family: "Share Tech Mono", monospace
+    }
+
+    .summary-text,
+    .finding,
+    .conf-exp {
+      line-height: 1.5
+    }
+
+    .finding {
+      display: flex;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #21262d
+    }
+
+    .finding:last-child {
+      border-bottom: 0
+    }
+
+    .cbadge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 2px
+    }
+
+    .cbadge.HIGH {
+      background: rgba(63, 185, 80, .2)
+    }
+
+    .cbadge.MED {
+      background: rgba(240, 136, 62, .2)
+    }
+
+    .cbadge.LOW {
+      background: rgba(255, 123, 114, .2)
+    }
+
+    .sources-table {
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .src-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 100px 120px;
+      gap: 8px;
+      font-size: 12px
+    }
+
+    .src-row a {
+      color: #79c0ff;
+      text-decoration: none
+    }
+
+    .rel-track {
+      height: 4px;
+      background: #161b22
+    }
+
+    .rel-fill {
+      height: 100%;
+      background: #3fb950
+    }
+
+    .followup {
+      padding: 6px;
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      cursor: pointer
+    }
+
+    .followup:hover {
+      border-color: #3f4854
+    }
+
+    .conf-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .conf-svg {
+      width: 92px;
+      height: 92px
+    }
+
+    .conf-num {
+      font-size: 34px
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .mode-tab {
+      padding: 5px 10px;
+      border: 1px solid var(--border-dim);
+      cursor: pointer;
+      font-size: 11px;
+      background: #161b22;
+      color: #8b949e;
+    }
+
+    .mode-tab.active {
+      color: #0d1117;
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+    }
+
+    #lie-input {
+      width: 100%;
+      min-height: 120px;
+      padding: 10px;
+      background: #161b22;
+      color: #e6edf3;
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      margin-bottom: 8px;
+    }
+
+    .feature-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .mini-btn {
+      padding: 6px 10px;
+      border: 1px solid var(--border-dim);
+      background: #161b22;
+      color: #e6edf3;
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .badge-archived {
+      background: rgba(240, 136, 62, .25);
+      color: #f2cc60;
+      padding: 1px 6px;
+      font-size: 10px;
+      border-radius: 2px;
+    }
+
+    .fresh-FRESH {
+      color: #3fb950;
+    }
+
+    .fresh-RECENT {
+      color: #58a6ff;
+    }
+
+    .fresh-AGING {
+      color: #f2cc60;
+    }
+
+    .fresh-STALE {
+      color: #ff9e64;
+    }
+
+    .fresh-VERY_STALE {
+      color: #ff7b72;
+    }
+
+    .consensus-bar {
+      height: 10px;
+      background: #161b22;
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 4px 0 8px;
+    }
+
+    .consensus-fill {
+      height: 100%;
+    }
+
+    .warn-card {
+      border: 1px solid #ff7b72;
+      background: rgba(255, 123, 114, .08);
+    }
+
+    .ghost-active {
+      box-shadow: inset 0 0 0 2px #ff4d4d;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .75);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-card {
+      background: #0d1117;
+      border: 1px solid var(--border-dim);
+      width: min(760px, 92vw);
+      max-height: 82vh;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .rank-pill {
+      margin-left: 8px;
+      font-size: 11px;
+      border: 1px solid var(--border-dim);
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+
+    @keyframes livepulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    @media (max-width:1000px) {
+      .arch-grid {
+        grid-template-columns: 1fr
+      }
+
+      .left,
+      .right {
+        display: none
+      }
+
+      .hero h1 {
+        font-size: 44px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="live-monitor-box" style="display:none;position:fixed;top:12px;left:12px;z-index:9999;
+  width:260px;background:#0a0a0a;border:1px solid #00FF88;border-radius:8px;
+  padding:10px 12px;font-size:12px;font-family:monospace;max-height:320px;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="color:#00FF88;font-weight:600;display:flex;align-items:center;gap:6px">
+        <span id="live-dot" style="width:7px;height:7px;background:#00FF88;border-radius:50%;
+        display:inline-block;animation:livepulse 1s infinite"></span>
+        LIVE MONITOR
+      </span>
+      <button onclick="stopLiveMonitor()"
+        style="background:none;border:none;color:#666;cursor:pointer;font-size:14px">✕</button>
+    </div>
+    <div id="live-topic" style="color:#888;font-size:11px;margin-bottom:8px"></div>
+    <div id="live-feed" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+  <div class="shell-bg"></div>
+
+  <div id="landing">
+    <nav class="nav">
+      <div class="brand">DeepTrace</div>
+    </nav>
+    <section class="hero">
+      <h1>Research that grounds every claim in live web data.</h1>
+      <p>DeepTrace browses the live web in real-time, scrapes multiple sources, and returns a structured report with
+        citations and confidence scoring in seconds.</p>
+      <div class="hero-buttons">
+        <button class="btn" id="main-cta-btn"></button>
+        <a class="btn" href="#architecture">View Architecture -></a>
+      </div>
+    </section>
+    <section class="stats">
+      <div class="stat">
+        <div class="n">3-5</div>
+        <div class="l">Live sources per query</div>
+      </div>
+      <div class="stat">
+        <div class="n">100%</div>
+        <div class="l">Claims traceable to URLs</div>
+      </div>
+      <div class="stat">
+        <div class="n">70B</div>
+        <div class="l">Reasoning model</div>
+      </div>
+      <div class="stat">
+        <div class="n">&lt;10s</div>
+        <div class="l">Report delivery</div>
+      </div>
+    </section>
+    <section class="section">
+      <h2 class="heading">Intelligence Layer</h2>
+      <div class="platform-card">
+        <div class="platform-left">
+          <div class="platform-number">
+            <div class="platform-title">Live Web Scraping Engine</div>
+            <div>/0.1</div>
+          </div>
+          <div class="platform-desc">Firecrawl MCP scrapes live sources per query with relevance scoring and direct
+            citations.</div>
+        </div>
+        <div class="platform-right">
+          <div class="ghost">3-5x</div>
+          <div>/0.1</div>
+        </div>
+      </div>
+      <div class="platform-card">
+        <div class="platform-left">
+          <div class="platform-number">
+            <div class="platform-title">Llama 3.3 70B Synthesis</div>
+            <div>/0.2</div>
+          </div>
+          <div class="platform-desc">Groq-accelerated synthesis across sources, conflict resolution, and structured
+            output.</div>
+        </div>
+        <div class="platform-right">
+          <div class="ghost">70B</div>
+          <div>/0.2</div>
+        </div>
+      </div>
+      <div class="platform-card">
+        <div class="platform-left">
+          <div class="platform-number">
+            <div class="platform-title">Structured Citation Layer</div>
+            <div>/0.3</div>
+          </div>
+          <div class="platform-desc">Every key claim maps to a source URL for grounded reporting.</div>
+        </div>
+        <div class="platform-right">
+          <div class="ghost">URL</div>
+          <div>/0.3</div>
+        </div>
+      </div>
+    </section>
+    <section id="architecture" class="section" style="background:#0d0e10">
+      <h2 class="heading">Architecture</h2>
+      <div class="arch-grid">
+        <div class="arch-card">
+          <div>
+            <div class="arch-title">01 - Scraping Layer</div>
+            <div class="arch-tech">Firecrawl MCP</div>
+          </div>
+          <div class="arch-pills"><span class="pill">Firecrawl</span><span class="pill">MCP</span><span
+              class="pill">Realtime</span></div>
+        </div>
+        <div class="arch-card">
+          <div>
+            <div class="arch-title">02 - Reasoning Layer</div>
+            <div class="arch-tech">Groq / Llama 3.3</div>
+          </div>
+          <div class="arch-pills"><span class="pill">Groq</span><span class="pill">70B</span><span
+              class="pill">Python</span></div>
+        </div>
+        <div class="arch-card">
+          <div>
+            <div class="arch-title">03 - Memory Layer</div>
+            <div class="arch-tech">Supabase</div>
+          </div>
+          <div class="arch-pills"><span class="pill">Supabase</span><span class="pill">Optional</span><span
+              class="pill">Multi-turn</span></div>
+        </div>
+        <div class="arch-card">
+          <div>
+            <div class="arch-title">04 - Orchestration</div>
+            <div class="arch-tech">FastAPI</div>
+          </div>
+          <div class="arch-pills"><span class="pill">REST</span><span class="pill">Python</span><span
+              class="pill">Backend</span></div>
+        </div>
+        <div class="arch-card">
+          <div>
+            <div class="arch-title">05 - Delivery</div>
+            <div class="arch-tech">SSE Interface</div>
+          </div>
+          <div class="arch-pills"><span class="pill">SSE</span><span class="pill">HTML/CSS/JS</span><span
+              class="pill">Live</span></div>
+        </div>
+        <div class="arch-card">
+          <div>
+            <div class="arch-title">06 - Output</div>
+            <div class="arch-tech">Structured Report</div>
+          </div>
+          <div class="arch-pills"><span class="pill">Citations</span><span class="pill">Confidence</span><span
+              class="pill">Report</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <h2 class="heading">Core Pipeline</h2>
+      <div class="pipeline">
+        <div class="p-step">
+          <div class="p-num">01</div>
+          <div class="p-title">User Query</div>
+        </div>
+        <div>-></div>
+        <div class="p-step">
+          <div class="p-num">02</div>
+          <div class="p-title">Firecrawl MCP</div>
+        </div>
+        <div>-></div>
+        <div class="p-step">
+          <div class="p-num">03</div>
+          <div class="p-title">Scoring</div>
+        </div>
+        <div>-></div>
+        <div class="p-step">
+          <div class="p-num">04</div>
+          <div class="p-title">Llama 3.3</div>
+        </div>
+        <div>-></div>
+        <div class="p-step">
+          <div class="p-num">05</div>
+          <div class="p-title">Citation Build</div>
+        </div>
+        <div>-></div>
+        <div class="p-step">
+          <div class="p-num">06</div>
+          <div class="p-title">SSE Stream</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section id="main-ui" class="hidden">
+    <div class="top"><span class="logo">DEEPTRACE</span><span class="sid" id="h-sid"></span><span class="rank-pill"
+        id="rank-pill">ANALYST ◆</span><button class="act" onclick="doExport()">EXPORT</button><button class="act"
+        onclick="showLeaderboard()">LEADERBOARD</button><button onclick="window.location.href='/fact-wars'" style="background:none;border:1px solid #222;
+  color:#888;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:11px;letter-spacing:.05em">
+        ⚔ FACT WARS
+      </button><button class="act" onclick="openLiveMonitor()">LIVE MONITOR</button><button class="act"
+        onclick="backToLanding()">HOME</button><button class="act" onclick="doLogout()">LOGOUT</button></div>
+    <div class="body-wrap">
+      <aside class="left">
+        <div class="ptitle">RESEARCH SESSIONS <span class="badge" id="sess-count">0</span></div>
+        <div class="session-list" id="sess-list"></div><button class="clear-btn" onclick="clearHistory()">CLEAR
+          HISTORY</button>
+        <div class="ptitle">PREDICTIONS <span class="badge" id="pred-acc">0%</span></div>
+        <div class="session-list" id="pred-list"></div>
+      </aside>
+      <main class="center" id="center">
+        <div class="empty-state" id="empty"><svg class="robot-avatar" viewBox="0 0 120 120"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="34" y="22" width="52" height="40" fill="#0d1117" stroke="var(--accent-green)" stroke-opacity=".65"
+              stroke-width="2" />
+            <rect x="46" y="28" width="10" height="10" fill="var(--accent-green)" />
+            <rect x="64" y="28" width="10" height="10" fill="var(--accent-green)" />
+            <rect x="56" y="40" width="8" height="6" fill="var(--accent-green)" opacity=".7" />
+            <rect x="28" y="64" width="64" height="34" fill="#0d1117" stroke="var(--accent-green)" stroke-opacity=".45"
+              stroke-width="2" />
+            <rect x="22" y="72" width="6" height="18" fill="var(--accent-green)" opacity=".55" />
+            <rect x="92" y="72" width="6" height="18" fill="var(--accent-green)" opacity=".55" />
+            <rect x="50" y="10" width="20" height="6" fill="var(--accent-green)" opacity=".6" />
+          </svg>
+          <h3>AWAITING RESEARCH DIRECTIVE</h3>
+          <p>Start a query and DeepTrace will stream every step with source intelligence and cited synthesis.</p>
+          <div class="chips"><button class="chip" onclick="applyChip(this)">AI safety regulations EU
+              2025</button><button class="chip" onclick="applyChip(this)">Top open-source LLMs and
+              benchmarks</button><button class="chip" onclick="applyChip(this)">Quantum computing breakthroughs
+              2025</button></div>
+        </div>
+      </main>
+      <aside class="right">
+        <div class="ptitle">SOURCE INTELLIGENCE <span class="badge" id="src-count">0</span></div>
+        <div class="src-cards" id="src-panel"></div>
+      </aside>
+    </div>
+    <div class="input">
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="mode-research" onclick="setMode('research')">RESEARCH</button>
+        <button class="mode-tab" id="mode-lie" onclick="setMode('lie')">LIE DETECTOR</button>
+      </div>
+      <div class="depth"><button class="d-btn" data-d="quick" onclick="setDepth(this)">QUICK</button><button
+          class="d-btn active" data-d="standard" onclick="setDepth(this)">STANDARD</button><button class="d-btn"
+          data-d="deep" onclick="setDepth(this)">DEEP</button><button class="d-btn" id="ghost-toggle"
+          onclick="toggleGhost()">👻 GHOST MODE</button><span class="est" id="est-info">~90s // 5 SOURCES</span>
+      </div>
+      <textarea id="lie-input" class="hidden" placeholder="Paste speech, article, or press release here"></textarea>
+      <div class="in-row"><input id="q-input" placeholder="ENTER RESEARCH DIRECTIVE..."
+          onkeydown="if(event.key==='Enter')exec()"><button id="exec-btn" onclick="exec()">EXECUTE</button><button
+          id="lie-btn" class="hidden" onclick="analyseClaims()">ANALYSE CLAIMS</button></div>
+    </div>
+  </section>
+
+  <script>
+    let depth = 'standard', sessionId = 'dt-' + crypto.randomUUID().slice(0, 8), lastReport = null, mode = 'research', ghostMode = false;
+    let activeStream = null;
+    let isRunning = false;
+    let liveMonitorInterval = null;
+    let liveMonitorQuery = null;
+    let liveMonitorLastResults = [];
+    const depthCfg = { quick: { t: '~30s', s: 3 }, standard: { t: '~90s', s: 5 }, deep: { t: '~3min', s: 10 } };
+    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML }
+    function getDomain(u) { try { return new URL(u).hostname.replace('www.', '') } catch (e) { return u } }
+
+    window.onload = function () {
+      document.getElementById('h-sid').textContent = 'SID: ' + sessionId;
+      loadSessions();
+      loadPredictions();
+      refreshRank();
+
+      const btn = document.getElementById('main-cta-btn');
+      if (localStorage.getItem('dt_session') === 'true') {
+        btn.textContent = 'Launch Research Agent';
+        btn.onclick = openAgent;
+      } else {
+        btn.textContent = 'Sign In';
+        btn.onclick = function () { window.location.href = '/login'; };
+      }
+    };
+
+    function openAgent() { document.getElementById('landing').classList.add('hidden'); document.getElementById('main-ui').classList.remove('hidden'); }
+    function backToLanding() { document.getElementById('main-ui').classList.add('hidden'); document.getElementById('landing').classList.remove('hidden'); }
+    function doLogout() {
+      localStorage.removeItem('dt_session');
+      localStorage.removeItem('dt_user');
+      location.reload();
+    }
+    function doExport() { if (lastReport && lastReport.session_id) { showExportOptions() } }
+    function showExportOptions() {
+      const modal = document.createElement('div'); modal.id = 'export-modal'; modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center'; modal.innerHTML = `
+<div style="background:#1e2124;padding:30px;border-radius:8px;max-width:400px;width:90%;">
+<h3 style="margin:0 0 20px 0;color:#fff;">Export Research Report</h3>
+<button onclick="downloadFormat('pdf')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#00ff88;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Download PDF</button>
+<button onclick="downloadFormat('ppt')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#00ff88;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Download PPT</button>
+<button onclick="downloadFormat('markdown')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;">Download Markdown</button>
+<button onclick="getShareLink()" style="display:block;width:100%;padding:12px;margin:8px 0;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;">Get Share Link</button>
+<button onclick="closeExportModal()" style="display:block;width:100%;padding:12px;margin:20px 0 0 0;background:#666;color:#fff;border:none;border-radius:4px;cursor:pointer;">Cancel</button>
+</div>`; document.body.appendChild(modal)
+    }
+    function closeExportModal() { const modal = document.getElementById('export-modal'); if (modal) modal.remove() }
+    
+    function updateMode(newMode, e) {
+      if (e) e.stopPropagation();
+      localStorage.setItem('dt_mode', newMode);
+      
+      const btnIcon = document.getElementById('mode-indicator-icon');
+      const btnText = document.getElementById('mode-indicator-text');
+      const dropBtn = document.getElementById('mode-indicator-btn');
+      
+      document.querySelectorAll('.mode-option').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.mode-option .check').forEach(el => el.classList.add('hidden'));
+      
+      if (newMode === 'ghost') {
+        btnIcon.textContent = '👻';
+        btnText.textContent = 'GHOST';
+        if (!ghostMode) toggleGhost();
+      } else {
+        btnIcon.textContent = '⚡';
+        btnText.textContent = newMode.toUpperCase();
+        if (ghostMode) toggleGhost();
+        const depthBtn = document.querySelector(`.d-btn[data-d="${newMode}"]`);
+        if (depthBtn) setDepth(depthBtn);
+      }
+      
+      const options = document.querySelectorAll('.mode-option');
+      for(let opt of options) {
+        if (opt.textContent.toLowerCase().includes(newMode)) {
+          opt.classList.add('active');
+          const check = opt.querySelector('.check');
+          if(check) check.classList.remove('hidden');
+        }
+      }
+      if(dropBtn) dropBtn.classList.remove('open');
+    }
+
+    async function downloadFormat(format) { 
+      if (!lastReport) return;
+      closeExportModal();
+      
+      if (format === 'markdown') {
+        const url = '/research/export?session_id=' + lastReport.session_id + '&format=markdown'; 
+        const link = document.createElement('a'); link.href = url; link.download = 'deeptrace-report-' + lastReport.session_id.slice(0, 8) + '.md'; 
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        return;
+      }
+      
+      if (format === 'pdf') {
+        const modeLabel = localStorage.getItem('dt_mode') || 'standard';
+        const pdfContent = document.createElement('div');
+        pdfContent.style.padding = '40px';
+        pdfContent.style.fontFamily = 'Inter, sans-serif';
+        pdfContent.style.color = '#333';
+        pdfContent.style.background = '#fff';
+        
+        let chartsHtml = '';
+        if (lastReport.research_dna) chartsHtml += renderDNA(lastReport.research_dna);
+        const cons = extractConsensus(lastReport);
+        if (cons) chartsHtml += renderConsensus(cons);
+
+        pdfContent.innerHTML = `
+          <div style="height:1050px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <h1 style="font-size:48px; color:#000; margin-bottom:20px;">DeepTrace Research</h1>
+            <h2 style="font-size:24px; color:#555; margin-bottom:40px; font-weight:normal;">${esc(lastReport.query)}</h2>
+            <div style="font-size:16px; color:#888; padding:10px 20px; border:2px solid #00ff88; border-radius:8px;">
+              DEPTH: ${modeLabel.toUpperCase()} | DATE: ${new Date().toLocaleDateString()}
+            </div>
+          </div>
+          <div style="page-break-before: always;"></div>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Executive Summary</h2>
+          <p style="font-size:14px; line-height:1.6; margin-bottom:30px;">${esc(lastReport.summary)}</p>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Key Findings</h2>
+          <ul style="font-size:14px; line-height:1.6; padding-left:20px; margin-bottom:30px;">
+            ${(lastReport.key_findings || []).map(f => `<li style="margin-bottom:10px;">${esc(f)}</li>`).join('')}
+          </ul>
+          <div style="page-break-before: always;"></div>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Advanced Analytics</h2>
+          <div style="background:#0a0a0a; color:#fff; padding:20px; border-radius:8px;">${chartsHtml}</div>
+          <div style="page-break-before: always;"></div>
+          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Sources & Citations</h2>
+          <div style="font-size:12px; line-height:1.5;">
+            ${(lastReport.citations || lastReport.sources || []).map(c => {
+              const url = c.url || c.link || c || '';
+              const title = c.title || url;
+              return `<div style="margin-bottom:15px;"><strong>${esc(title)}</strong><br/><a href="${esc(url)}" style="color:#0066cc;">${esc(url)}</a></div>`;
+            }).join('')}
+          </div>
+        `;
+        
+        const opt = {
+          margin: [0.5, 0.5, 0.8, 0.5],
+          filename: `deeptrace-${lastReport.session_id.slice(0,8)}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(pdfContent).toPdf().get('pdf').then(function (pdf) {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(10);
+            pdf.setTextColor(150);
+            pdf.text('Page ' + i + ' of ' + totalPages, pdf.internal.pageSize.getWidth() - 1, pdf.internal.pageSize.getHeight() - 0.4);
+          }
+        }).save();
+        return;
+      }
+      
+      if (format === 'ppt') {
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_16x9';
+        pptx.defineSlideMaster({
+          title: 'MASTER_SLIDE',
+          background: { color: '0a0a0a' },
+          objects: [
+            { text: { text: 'DeepTrace Autonomous Research', options: { x: 0.5, y: 0.2, w: 5, h: 0.3, color: '00ff88', fontSize: 12 } } },
+            { rect: { x: 0, y: 0, w: '100%', h: 0.05, fill: { color: '00ff88' } } }
+          ]
+        });
+
+        const modeLabel = localStorage.getItem('dt_mode') || 'standard';
+
+        let slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+        slide.addText('RESEARCH REPORT', { x: 1, y: 2, w: '80%', fontSize: 44, color: 'ffffff', bold: true });
+        slide.addText(lastReport.query, { x: 1, y: 3, w: '80%', fontSize: 24, color: 'cccccc' });
+        slide.addText(`DEPTH: ${modeLabel.toUpperCase()} | ${new Date().toLocaleDateString()}`, { x: 1, y: 4, w: '80%', fontSize: 16, color: '00ff88' });
+
+        slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+        slide.addText('Executive Summary', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+        slide.addText(lastReport.summary, { x: 0.5, y: 1.5, w: '90%', fontSize: 18, color: 'ffffff' });
+
+        (lastReport.key_findings || []).forEach((finding, idx) => {
+          let fSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+          fSlide.addText(`Key Finding ${idx + 1}`, { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+          fSlide.addText(finding, { x: 0.5, y: 1.8, w: '90%', fontSize: 20, color: 'ffffff' });
+        });
+        
+        const offscreen = document.createElement('div');
+        offscreen.style.position = 'absolute';
+        offscreen.style.left = '-9999px';
+        offscreen.style.width = '800px';
+        offscreen.style.background = '#0a0a0a';
+        offscreen.style.color = '#fff';
+        offscreen.style.padding = '20px';
+        
+        let chartsHtml = '';
+        if (lastReport.research_dna) chartsHtml += renderDNA(lastReport.research_dna);
+        const cons = extractConsensus(lastReport);
+        if (cons) chartsHtml += renderConsensus(cons);
+        offscreen.innerHTML = chartsHtml;
+        document.body.appendChild(offscreen);
+
+        html2canvas(offscreen, { backgroundColor: '#0a0a0a' }).then(canvas => {
+          const imgData = canvas.toDataURL('image/png');
+          document.body.removeChild(offscreen);
+          
+          let cSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+          cSlide.addText('Advanced Analytics', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+          cSlide.addImage({ data: imgData, x: 1, y: 1.5, w: 8, h: (8 * canvas.height / canvas.width) });
+
+          let sSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+          sSlide.addText('Sources & Citations', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
+          let yPos = 1.5;
+          (lastReport.citations || lastReport.sources || []).slice(0, 5).forEach(c => {
+            const url = c.url || c.link || c || '';
+            const title = (c.title || url).slice(0, 80);
+            sSlide.addText(title, { x: 0.5, y: yPos, w: '90%', fontSize: 14, color: 'ffffff', bold: true });
+            yPos += 0.3;
+            sSlide.addText(url, { x: 0.5, y: yPos, w: '90%', fontSize: 12, color: '00ff88', hyperlink: { url: url } });
+            yPos += 0.5;
+          });
+
+          pptx.writeFile({ fileName: `deeptrace-${lastReport.session_id.slice(0,8)}.pptx` });
+        });
+      }
+    }
+
+    async function getShareLink() { try { const r = await fetch('/research/share/' + lastReport.session_id); const d = await r.json(); if (d.share_url) { navigator.clipboard.writeText(d.share_url); alert('Share link copied to clipboard!') } else alert('Failed to generate share link') } catch (e) { alert('Error generating share link') } closeExportModal() }
+    function applyChip(el) { document.getElementById('q-input').value = el.textContent }
+
+    function setDepth(el) { document.querySelectorAll('.d-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); depth = el.dataset.d; const c = depthCfg[depth]; document.getElementById('est-info').textContent = c.t + ' // ' + c.s + ' SOURCES' }
+    function setMode(m) {
+      mode = m;
+      document.getElementById('mode-research').classList.toggle('active', m === 'research');
+      document.getElementById('mode-lie').classList.toggle('active', m === 'lie');
+      document.getElementById('q-input').classList.toggle('hidden', m !== 'research');
+      document.getElementById('exec-btn').classList.toggle('hidden', m !== 'research');
+      document.getElementById('lie-input').classList.toggle('hidden', m !== 'lie');
+      document.getElementById('lie-btn').classList.toggle('hidden', m !== 'lie');
+    }
+    function toggleGhost() {
+      ghostMode = !ghostMode;
+      document.getElementById('main-ui').classList.toggle('ghost-active', ghostMode);
+      document.getElementById('ghost-toggle').classList.toggle('active', ghostMode);
+      if (ghostMode) alert('Ghost queries leave no server logs. Once you close this tab, this research is gone forever.');
+    }
+
+    async function loadSessions() {
+      try {
+        const r = await fetch('/sessions'); const d = await r.json(); const list = document.getElementById('sess-list'); list.innerHTML = '';
+        document.getElementById('sess-count').textContent = d.sessions.length;
+        d.sessions.forEach(s => {
+          const el = document.createElement('div'); el.className = 's-item';
+          el.innerHTML = '<div class="sq">' + esc(s.query.slice(0, 90)) + '</div><div class="sm"><span>' + esc((s.timestamp || '').slice(11, 19)) + '</span><span>' + s.sources_scraped + ' src</span></div>';
+          el.onclick = () => loadSession(s.session_id); list.appendChild(el)
+        })
+      } catch (e) { }
+    }
+    async function loadSession(sid) { try { const r = await fetch('/session/' + sid); const d = await r.json(); if (d.history && d.history.length) { document.getElementById('empty').style.display = 'none'; renderFullReport(d.history[d.history.length - 1]) } } catch (e) { } }
+    async function clearHistory() { await fetch('/sessions/all', { method: 'DELETE' }); loadSessions() }
+    async function loadPredictions() {
+      const user = localStorage.getItem('dt_user') || 'anonymous@local';
+      try {
+        const r = await fetch('/predictions/my?user_email=' + encodeURIComponent(user));
+        const d = await r.json();
+        document.getElementById('pred-acc').textContent = (d.accuracy || 0) + '%';
+        const box = document.getElementById('pred-list');
+        box.innerHTML = '';
+        (d.predictions || []).forEach(p => {
+          const row = document.createElement('div');
+          row.className = 's-item';
+          row.innerHTML = '<div class="sq">' + esc((p.prediction.finding_text || '').slice(0, 80)) + '</div><div class="sm"><span>' + esc(p.status) + '</span><span>' + esc(String(p.confidence_delta || 0)) + '%</span></div>';
+          box.appendChild(row);
+        });
+      } catch (e) { }
+    }
+    async function refreshRank() {
+      const user = localStorage.getItem('dt_user') || 'anonymous@local';
+      try {
+        const r = await fetch('/user/rank?user_email=' + encodeURIComponent(user));
+        const d = await r.json();
+        document.getElementById('rank-pill').textContent = (d.rank || 'ANALYST') + ' ◆';
+      } catch (e) { }
+    }
+    function showModal(title, bodyHtml) {
+      const wrap = document.createElement('div');
+      wrap.className = 'modal-overlay';
+      wrap.innerHTML = '<div class="modal-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="card-title" style="margin:0">' + esc(title) + '</div><button class="mini-btn" id="modal-close">CLOSE</button></div><div>' + bodyHtml + '</div></div>';
+      wrap.querySelector('#modal-close').onclick = () => wrap.remove();
+      document.body.appendChild(wrap);
+    }
+
+    function exec() {
+      const inp = document.getElementById('q-input');
+      const btn = document.getElementById('exec-btn');
+      const q = inp.value.trim();
+      if (!q) return;
+      if (isRunning) return; // prevent double-execution
+
+      // Kill any existing stream before starting new one
+      if (activeStream) {
+        try { activeStream.close(); } catch (e) { }
+        activeStream = null;
+      }
+
+      isRunning = true;
+      let streamClosed = false; // guard against spurious onerror after done
+
+      document.getElementById('empty').style.display = 'none';
+      const prevVal = inp.value;
+      inp.value = '';
+      inp.disabled = true;
+      btn.disabled = true;
+      btn.textContent = 'RUNNING...';
+
+      document.getElementById('center').innerHTML = '';
+      document.getElementById('src-panel').innerHTML = '';
+      document.getElementById('src-count').textContent = '0';
+
+      let srcTotal = 0;
+
+      function resetUI() {
+        isRunning = false;
+        streamClosed = true;
+        const _inp = document.getElementById('q-input');
+        const _btn = document.getElementById('exec-btn');
+        if (_inp) { _inp.disabled = false; _inp.focus(); }
+        if (_btn) { _btn.disabled = false; _btn.textContent = 'EXECUTE'; }
+        if (activeStream) {
+          try { activeStream.close(); } catch (e) { }
+          activeStream = null;
+        }
+      }
+
+      const url = '/research/stream?query=' + encodeURIComponent(prevVal) +
+        '&max_sources=' + depthCfg[depth].s + '&depth=' + depth;
+
+      activeStream = new EventSource(url);
+
+      activeStream.onmessage = function (e) {
+        if (streamClosed) return; // ignore messages after stream was closed
+        try {
+          const d = JSON.parse(e.data);
+          if (d.status === 'done') {
+            streamClosed = true;
+            activeStream.close();
+            activeStream = null;
+            lastReport = d.report;
+            renderFullReport(d.report);
+            resetUI();
+            loadSessions();
+            return;
+          }
+          if (d.status === 'error') {
+            streamClosed = true;
+            activeStream.close();
+            activeStream = null;
+            addStep(d, 'error');
+            resetUI();
+            return;
+          }
+          addStep(d);
+          // Handle sources_found event (backend uses this key, not "sources")
+          const newSources = d.sources || d.sources_found || [];
+          if (newSources.length > 0) {
+            newSources.forEach(s => { srcTotal++; addSourceCard(s); });
+            document.getElementById('src-count').textContent = srcTotal;
+          }
+          if (d.scored_sources) d.scored_sources.forEach(s => updateSourceScore(s));
+          document.getElementById('center').scrollTop = document.getElementById('center').scrollHeight;
+        } catch (err) { console.error('Parse error:', err, e.data); }
+      };
+
+      activeStream.onerror = function () {
+        if (streamClosed) return; // done already handled — ignore reconnect error
+        streamClosed = true;
+        try { activeStream.close(); } catch (e) { }
+        activeStream = null;
+        addStep({ step: '?', timestamp: '', status: 'error', message: 'Connection lost. Click Execute to retry.' }, 'error');
+        resetUI();
+      };
+
+      addUserMsg(prevVal);
+    }
+    function addUserMsg(q) { const d = document.createElement('div'); d.className = 'user-query'; d.textContent = '> ' + q; document.getElementById('center').appendChild(d) }
+    function addStep(d, cls) {
+      const el = document.createElement('div'); el.className = 'step-line ' + (cls || '');
+      el.innerHTML = '<span class="sn">[STEP ' + String(d.step || 0).padStart(2, '0') + ']</span><span class="st">[' + (d.timestamp || '') + ']</span><span class="sb">' + esc(d.status || '').toUpperCase() + '</span><span class="sm-text">' + esc(d.message || '') + '</span>';
+      document.getElementById('center').appendChild(el)
+    }
+    function addSourceCard(s) {
+      if (!s || (!s.url && !s.title)) return; // skip empty sources
+      const url = s.url || '';
+      const domain = url ? getDomain(url) : (s.title || 'source').slice(0, 20);
+      const preview = s.preview || s.content || s.snippet || '';
+      const wordCount = s.word_count || 0;
+      const ts = (s.scrape_timestamp || '').slice(11, 19);
+      const rel = s.relevance_score || 0.5;
+      const el = document.createElement('div');
+      el.className = 'src-card';
+      el.dataset.url = url;
+      el.innerHTML =
+        '<div class="domain">' + esc(domain) + '</div>' +
+        '<div class="meta"><span>' + ts + '</span><span> ' + wordCount + 'w</span></div>' +
+        '<div class="rel-bar"><div class="fill" style="width:' + Math.round(rel * 100) + '%"></div></div>' +
+        '<div class="preview">' + esc(preview.slice(0, 200)) + '</div>';
+      document.getElementById('src-panel').appendChild(el);
+    }
+    function updateSourceScore(s) { document.querySelectorAll('.src-card').forEach(el => { if (el.dataset.url === s.url) { const bar = el.querySelector('.rel-bar .fill'); if (bar) bar.style.width = (s.relevance_score * 100) + '%' } }) }
+    function extractConfidenceScore(report) {
+      const raw = report.confidence_score
+        ?? report.confidence
+        ?? report.confidenceScore
+        ?? report.confidence_level
+        ?? report.overall_confidence
+        ?? null;
+      if (raw === null || raw === undefined) return 0;
+      if (typeof raw === 'number') return raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+      if (typeof raw === 'string') {
+        const stripped = raw.replace('%', '').trim();
+        const num = parseFloat(stripped);
+        if (!isNaN(num)) return num <= 1 ? Math.round(num * 100) : Math.round(num);
+        const words = { 'high': 85, 'medium': 60, 'moderate': 60, 'low': 30, 'very high': 95 };
+        return words[raw.toLowerCase()] || 0;
+      }
+      if (typeof raw === 'object' && raw !== null) {
+        const n = raw.score ?? raw.value ?? raw.percentage ?? 0;
+        return Math.round(Number(n) || 0);
+      }
+      return 0;
+    }
+    function extractConsensus(report) {
+      const raw = report.consensus
+        ?? report.global_consensus
+        ?? report.consensus_data
+        ?? report.globalConsensus
+        ?? null;
+      const safeInt = (v) => {
+        if (v === null || v === undefined) return null;
+        if (typeof v === 'number') return Math.round(v <= 1 ? v * 100 : v);
+        if (typeof v === 'string') {
+          const n = parseFloat(v.replace('%', ''));
+          return isNaN(n) ? null : Math.round(n <= 1 ? n * 100 : n);
+        }
+        return null;
+      };
+      if (!raw) return null;
+      return {
+        overall: safeInt(raw.overall ?? raw.overall_score ?? raw.score) ?? 0,
+        academic: safeInt(raw.academic ?? raw.academic_score ?? raw.scholarly) ?? 0,
+        news: safeInt(raw.news ?? raw.news_score ?? raw.media) ?? 0,
+        social: safeInt(raw.social ?? raw.social_score ?? raw.web) ?? 0,
+        summary: raw.summary ?? raw.description ?? ''
+      };
+    }
+    function renderFullReport(r) {
+      console.log('FULL REPORT OBJECT:', JSON.stringify(r, null, 2));
+      const center = document.getElementById('center');
+      let html = '<div class="rpt">';
+      html += '<div class="card"><div class="card-title">QUERY</div><div style="font-family:IBM Plex Mono,monospace;color:#79c0ff;font-size:13px">' + esc(r.query) + '</div></div>';
+      if (r.academic_mode || r.financial_mode) {
+        html += '<div class="card"><div class="card-title">MODE FLAGS</div>';
+        if (r.academic_mode) html += '<div class="mini-btn" style="display:inline-block;margin-right:6px">ACADEMIC MODE ACTIVE</div>';
+        if (r.financial_mode) html += '<div class="mini-btn" style="display:inline-block">FINANCIAL INTELLIGENCE</div>';
+        html += '</div>';
+      }
+      html += '<div class="card"><div class="card-title">EXECUTIVE SUMMARY</div><div class="summary-text">' + esc(r.summary) + '</div></div>';
+      html += '<div class="card"><div class="card-title">KEY FINDINGS</div>';
+      (r.key_findings || []).forEach((f, i) => { let badge = 'MED', fc = r.finding_confidences && r.finding_confidences[i]; if (fc) badge = fc.confidence || 'MED'; html += '<div class="finding"><span>' + (i + 1) + '</span><span>' + esc(f) + '</span><span class="cbadge ' + badge + '">' + badge + '</span></div>'; });
+      html += '</div>';
+      html += '<div class="card"><div class="card-title">SOURCES</div><div class="sources-table">';
+      var srcs = r.citations || r.sources || r.urls || []; if (!srcs || srcs.length === 0) { html += '<p style="color:#8b949e">No sources available</p>' }
+      else { srcs.forEach((c, i) => { var url = c.url || c.link || c || ''; var title = c.title || c.name || (url ? getDomain(url) : 'Source ' + (i + 1)); var rel = c.relevance_score || c.score || 0.8; var domain = url ? getDomain(url) : 'unknown'; var archived = c.archived ? '<span class="badge-archived" title="Original page unavailable. Showing Wayback snapshot">ARCHIVED</span>' : ''; var fresh = c.freshness ? '<span class="fresh-' + esc(c.freshness) + '">' + esc(c.freshness) + '</span>' : ''; html += '<div class="src-row"><span>' + esc(domain) + ' ' + archived + '</span><span>' + esc(title) + ' ' + fresh + ' <button class="mini-btn" onclick="traceSource(\'' + esc(url) + '\')">🔍 TRACE</button></span><span><div class="rel-track"><div class="rel-fill" style="width:' + Math.round(rel * 100) + '%"></div></div></span><a href="' + esc(url) + '" target="_blank">' + esc(domain) + '</a></div>' }) }
+      html += '</div></div>';
+      if (r.conflicts && r.conflicts.length && r.conflicts[0]) { html += '<div class="card"><div class="card-title">CONFLICTS</div>'; r.conflicts.forEach(c => { html += '<div style="font-size:13px;color:#f0883e;padding:4px 0">' + esc(c) + '</div>' }); html += '</div>' }
+      if (r.suggested_followups && r.suggested_followups.length) { html += '<div class="card"><div class="card-title">FOLLOW-UP QUERIES</div><div style="display:flex;flex-direction:column;gap:6px">'; r.suggested_followups.forEach(f => { html += '<div class="followup" data-followup-query="' + esc(f) + '">' + esc(f) + '</div>' }); html += '</div></div>' }
+      const confScore = extractConfidenceScore(r);
+      const confText = r.confidence_assessment ?? r.confidence_text ?? r.assessment ?? r.confidence_explanation ?? '';
+      html += '<div id="confidence-card">' + renderConfidence(confScore, confText) + '</div>';
+      if (r.research_dna) html += renderDNA(r.research_dna);
+      const consensusData = extractConsensus(r);
+      html += '<div id="consensus-card">' + (consensusData ? renderConsensus(consensusData) : '<div class="card">Consensus data unavailable.</div>') + '</div>';
+      html += '<div class="card"><div class="card-title">ADVANCED MODES</div><div class="feature-actions"><button class="mini-btn" onclick="runDevilsAdvocate()">⚔ DEVIL\'S ADVOCATE</button><button class="mini-btn" onclick="runPressureTest()">🔨 PRESSURE TEST THIS REPORT</button><button class="mini-btn" onclick="trackDrift()">⏱ TRACK FOR DRIFT</button><button class="mini-btn" onclick="runLaunderingCheck()">🕵 CHECK FOR LAUNDERING</button><button class="mini-btn" onclick="notarizeReport()">NOTARIZE REPORT</button></div></div>';
+      html += '</div>';
+      center.innerHTML = html; center.scrollTop = center.scrollHeight;
+      if (!consensusData) fetchConsensus(r);
+      loadPredictions();
+    }
+    function useFollowup(el) {
+      const q = el.dataset.followupQuery || el.textContent;
+      const inp = document.getElementById('q-input');
+      if (inp) { inp.value = q; inp.disabled = false; }
+      const btn = document.getElementById('exec-btn');
+      if (btn) { btn.disabled = false; btn.textContent = 'EXECUTE'; }
+      isRunning = false; // ensure state is clean before re-executing
+      setMode('research');
+      exec();
+    }
+    // Event delegation: handle follow-up button clicks on dynamically rendered content
+    document.getElementById('center').addEventListener('click', function (e) {
+      const followup = e.target.closest('.followup[data-followup-query]');
+      if (followup) {
+        e.preventDefault();
+        useFollowup(followup);
+      }
+    });
+    function renderConsensus(consensus) {
+      if (!consensus) return '<div class="card">Consensus data unavailable.</div>';
+      const overall = parseInt(consensus.overall) || 0;
+      const academic = parseInt(consensus.academic) || 0;
+      const news = parseInt(consensus.news) || 0;
+      const social = parseInt(consensus.social) || 0;
+
+      const color = (v) => v >= 70 ? '#22c55e' : v >= 40 ? '#f59e0b' : '#ef4444';
+      const bar = (v) => `<div style="background:#1a1a1a;border-radius:4px;height:6px;width:100%;margin-top:4px"><div style="width:${v}%;height:100%;background:${color(v)};border-radius:4px;transition:width .5s"></div></div>`;
+
+      return `<div class="card">
+    <div class="card-title">GLOBAL CONSENSUS</div>
+    <div style="font-size:32px;font-weight:700;color:${color(overall)}">${overall}%</div>
+    <div style="margin-top:12px">
+      <div>Academic <span style="float:right">${academic}%</span>${bar(academic)}</div>
+      <div style="margin-top:8px">News <span style="float:right">${news}%</span>${bar(news)}</div>
+      <div style="margin-top:8px">Social <span style="float:right">${social}%</span>${bar(social)}</div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;opacity:0.6">${consensus.summary || ''}</div>
+  </div>`;
+    }
+    function renderConfidence(score, assessment) {
+      const s = parseInt(score) || 0;
+      const color = s >= 80 ? '#22c55e' : s >= 50 ? '#f59e0b' : '#ef4444';
+      const label = s >= 80 ? 'HIGH' : s >= 50 ? 'MODERATE' : 'LOW';
+      // Only use assessment text if it's meaningful (not the generic fallback phrase)
+      const badPhrases = [
+        'confidence could not be fully assessed',
+        'could not be fully assessed',
+        '',
+      ];
+      const assessmentClean = (assessment || '').trim().toLowerCase();
+      const useFallback = badPhrases.some(p => assessmentClean === p || assessmentClean.includes('could not be fully'));
+      const text = useFallback
+        ? (s >= 80
+          ? 'Strong source agreement across multiple verified sources. All key findings corroborated.'
+          : s >= 50
+            ? 'Moderate agreement with some conflicting signals detected across sources.'
+            : 'Limited source agreement. Treat findings with caution and verify independently.')
+        : assessment;
+      return `<div class="card">
+        <div class="card-title">CONFIDENCE ASSESSMENT</div>
+        <div style="font-size:40px;font-weight:700;color:${color}">${s}%</div>
+        <div style="font-size:12px;color:${color};margin-top:2px;letter-spacing:.05em">${label} CONFIDENCE</div>
+        <div style="margin-top:10px;font-size:13px;opacity:0.7;line-height:1.5">${text}</div>
+      </div>`;
+    }
+    function renderDNA(dna) {
+      const nodes = dna.nodes || 6, rings = Math.max(1, Math.round((dna.density || .5) * 5)), spikes = dna.spikes || 0;
+      let svg = '<svg viewBox="0 0 220 180" width="220" height="140">';
+      svg += '<polygon points="60,20 160,20 200,90 160,160 60,160 20,90" fill="none" stroke="' + (dna.color || '#58a6ff') + '" stroke-width="2"/>';
+      for (let i = 0; i < nodes; i++) { const a = (Math.PI * 2 * i) / nodes; const x = 110 + Math.cos(a) * 75; const y = 90 + Math.sin(a) * 65; svg += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + (dna.color || '#58a6ff') + '"/>'; }
+      for (let i = 0; i < rings; i++) { svg += '<circle cx="110" cy="90" r="' + (18 + i * 10) + '" fill="none" stroke="#3f4854" stroke-width="1"/>'; }
+      for (let i = 0; i < spikes; i++) { const x = 20 + i * 12; svg += '<line x1="' + x + '" y1="170" x2="' + x + '" y2="150" stroke="#ff7b72" />'; }
+      svg += '</svg>';
+      return '<div class="card"><div class="card-title">RESEARCH DNA</div><div>' + svg + '<div style="font-size:11px;color:#8b949e">hash: ' + esc(dna.hash || '') + '</div></div></div>';
+    }
+    async function loadConsensus(query) {
+      try {
+        const r = await fetch('/research/consensus', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+        const d = await r.json();
+        const box = document.getElementById('consensus-card');
+        if (box) box.innerHTML = renderConsensus(d);
+      } catch (e) { }
+    }
+    async function fetchConsensus(report) {
+      const query = report.query || report.original_query || '';
+      if (!query) return;
+      try {
+        const resp = await fetch('/research/consensus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query, session_id: report.session_id || report.id || '' })
+        });
+        const data = await resp.json();
+        const consensus = extractConsensus({ consensus: data });
+        const box = document.getElementById('consensus-card');
+        if (consensus && box) box.innerHTML = renderConsensus(consensus);
+      } catch (e) {
+        console.error('Consensus fetch failed:', e);
+      }
+    }
+    async function analyseClaims() {
+      const text = document.getElementById('lie-input').value.trim(); if (!text) return;
+      const center = document.getElementById('center'); center.innerHTML = '<div class="card"><div class="card-title">LIE DETECTOR</div><div id="lie-results"></div></div>';
+      const resp = await fetch('/research/lie-detector', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = '';
+      while (true) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const chunks = buf.split('\n\n'); buf = chunks.pop();
+        chunks.forEach(c => {
+          if (!c.startsWith('data: ')) return;
+          const d = JSON.parse(c.slice(6));
+          if (d.status === 'sentence') {
+            const cls = d.verdict === 'VERIFIED' ? '#3fb950' : d.verdict === 'MISLEADING' ? '#f2cc60' : d.verdict === 'FALSE' ? '#ff7b72' : '#8b949e';
+            document.getElementById('lie-results').innerHTML += '<div style="margin:6px 0;padding:6px;border-left:3px solid ' + cls + '" title="' + esc(d.reason || '') + '">' + esc(d.sentence) + ' <a href="' + esc(d.source_url || '') + '" target="_blank">source</a> <b>' + esc(d.verdict) + '</b></div>';
+          }
+          if (d.status === 'done') document.getElementById('lie-results').innerHTML += '<div class="card">Verified ' + d.summary.verified + '% / Misleading ' + d.summary.misleading + '% / False ' + d.summary.false + '%</div>';
+        });
+      }
+    }
+    async function traceSource(url) { const r = await fetch('/research/archaeology?url=' + encodeURIComponent(url)); const d = await r.json(); const body = (d.chain || []).map(c => '<div class="finding"><span>→</span><span>' + esc(c.type) + ' - ' + esc(c.domain) + ' - ' + esc(c.date) + '</span></div>').join('') || '<div>⚠ ORIGIN UNVERIFIED</div>'; showModal('SOURCE ARCHAEOLOGY', body); }
+    async function runDevilsAdvocate() {
+      if (!lastReport) return;
+      const r = await fetch('/research/devils-advocate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: lastReport.session_id,
+          report: {
+            query: lastReport.query,
+            key_findings: lastReport.key_findings || [],
+            summary: lastReport.summary || '',
+            citations: lastReport.citations || []
+          }
+        })
+      });
+      if (!r.ok || !r.body) {
+        showModal('DEVIL\'S ADVOCATE', '<div>Could not start counter-analysis. Please run a fresh research query and try again.</div>');
+        return;
+      }
+      const reader = r.body.getReader(); const decoder = new TextDecoder(); let buf = '';
+      let final = null;
+      while (true) { const { value, done } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); const chunks = buf.split('\n\n'); buf = chunks.pop(); chunks.forEach(c => { if (c.startsWith('data: ')) { const d = JSON.parse(c.slice(6)); if (d.status === 'done') final = d.result; } }); }
+      if (!final) { showModal('DEVIL\'S ADVOCATE', '<div>No counter-case received. Please try again.</div>'); return; }
+      const left = '<div class="card-title">CASE FOR</div><div>' + esc(final.case_for.summary || '') + '</div>';
+      const right = '<div class="card-title">CASE AGAINST</div><div>' + esc((final.case_against || {}).summary || '') + '</div>';
+      showModal('DEVIL\'S ADVOCATE', '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">' + left + '</div><div class="card">' + right + '</div></div><div style="margin-top:8px">VERDICT: Evidence favors ' + esc(final.verdict.favors) + ' by ' + esc(String(final.verdict.percent)) + '%</div>');
+    }
+    async function runPressureTest() { if (!lastReport) return; const r = await fetch('/research/pressure-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: lastReport.session_id }) }); const d = await r.json(); const rows = (d.objections || []).map(o => '<div class="finding"><span>[' + esc(o.severity) + ']</span><span>' + esc(o.text) + '</span><span>' + esc(o.verdict) + '</span></div>').join(''); showModal('PRESSURE TEST RESULTS', '<div style="margin-bottom:8px">PRESSURE TESTED: ' + esc(d.score || '') + '</div>' + rows); }
+    async function runLaunderingCheck() { if (!lastReport) return; const r = await fetch('/research/laundering-check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: lastReport.citations || [] }) }); const d = await r.json(); if (d.laundering_detected) { document.getElementById('center').innerHTML += '<div class="card warn-card"><div class="card-title">⚠ COORDINATED NARRATIVE DETECTED</div><div>' + esc(d.origin_url) + '</div></div>'; } }
+    async function trackDrift() { if (!lastReport) return; await fetch('/drift/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: lastReport.session_id, query: lastReport.query, original_findings: lastReport.key_findings || [], original_sources: (lastReport.citations || []).map(c => c.url), original_confidence: lastReport.confidence_score || 0, user_email: localStorage.getItem('dt_user') || 'anonymous@local' }) }); const c = await fetch('/drift/check/' + lastReport.session_id); const d = await c.json(); showModal('DRIFT REPORT', '<div>Confidence delta: ' + esc(String(d.confidence_delta || 0)) + '%</div><div>+ ' + esc(String((d.added_sources || []).length)) + ' new sources</div><div>- ' + esc(String((d.removed_sources || []).length)) + ' removed sources</div><div>Verdict: <b>' + esc(d.verdict || '') + '</b></div>'); }
+    async function notarizeReport() { if (!lastReport) return; const r = await fetch('/research/notarize/' + lastReport.session_id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_email: localStorage.getItem('dt_user') || 'anonymous@local' }) }); const d = await r.json(); showModal('REPORT NOTARIZED', '<div>NOTARIZED: ' + esc(d.timestamp || '') + '</div><div>HASH: ' + esc((d.hash || '').slice(0, 24)) + '...</div><div><a href="' + esc(d.verify_url || '#') + '" target="_blank">VERIFY INTEGRITY</a></div>'); }
+    async function showLeaderboard() { const r = await fetch('/leaderboard'); const d = await r.json(); const body = (d.leaders || []).map((u, i) => '<div class="finding"><span>#' + (i + 1) + '</span><span>' + esc(u.email || '') + '</span><span>' + esc(String(u.query_count || 0)) + '</span></div>').join(''); showModal('LEADERBOARD', body || '<div>No data</div>'); }
+    async function openFactWars() { const topic = prompt('Fact War topic:'); if (!topic) return; const r = await fetch('/factwars/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic, user_email: localStorage.getItem('dt_user') || 'anonymous@local' }) }); const d = await r.json(); showModal('FACT WARS', '<div>War created for topic: ' + esc(topic) + '</div><div>Share URL: <a href="/factwars/' + esc(d.war_id) + '" target="_blank">/factwars/' + esc(d.war_id) + '</a></div>'); }
+    async function openLiveMonitor() { const event_name = prompt('Event name:'); if (!event_name) return; const r = await fetch('/monitor/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_name, event_keywords: [event_name], check_interval_minutes: 5 }) }); const d = await r.json(); startLiveMonitor(event_name, 5); showModal('LIVE EVENT MONITOR', '<div>LIVE monitor active for: ' + esc(event_name) + '</div><div>Monitor ID: ' + esc(d.monitor_id || '') + '</div><div style="color:#ff7b72">● LIVE</div>'); }
+    function startLiveMonitor(query, intervalMinutes = 5) {
+      liveMonitorQuery = query;
+      document.getElementById('live-monitor-box').style.display = 'block';
+      document.getElementById('live-topic').textContent = 'Monitoring: ' + query;
+      runLiveMonitorCheck();
+      if (liveMonitorInterval) clearInterval(liveMonitorInterval);
+      liveMonitorInterval = setInterval(runLiveMonitorCheck, intervalMinutes * 60 * 1000);
+    }
+    async function runLiveMonitorCheck() {
+      try {
+        const resp = await fetch('/monitor/live-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: liveMonitorQuery, previous: liveMonitorLastResults })
+        });
+        const data = await resp.json();
+        if (data.signals && data.signals.length > 0) {
+          data.signals.forEach(s => addLiveNotification(s));
+          liveMonitorLastResults = data.signals;
+        }
+      } catch (e) { console.error('Live monitor error:', e); }
+    }
+    function addLiveNotification(signal) {
+      const feed = document.getElementById('live-feed');
+      const div = document.createElement('div');
+      const isNew = signal.type === 'NEW';
+      div.style.cssText = `padding:6px 8px;border-radius:4px;border-left:3px solid ${isNew ? '#00FF88' : '#f59e0b'};
+    background:${isNew ? 'rgba(0,255,136,0.05)' : 'rgba(245,158,11,0.05)'};font-size:11px;color:#ccc`;
+      div.innerHTML = `<div style="color:${isNew ? '#00FF88' : '#f59e0b'};font-size:10px;margin-bottom:2px">
+    ${isNew ? 'NEW' : 'UPDATE'} · ${new Date().toLocaleTimeString()}</div>${signal.text}`;
+      feed.insertBefore(div, feed.firstChild);
+      while (feed.children.length > 10) feed.removeChild(feed.lastChild);
+    }
+    function stopLiveMonitor() {
+      if (liveMonitorInterval) clearInterval(liveMonitorInterval);
+      liveMonitorInterval = null;
+      liveMonitorQuery = null;
+      document.getElementById('live-monitor-box').style.display = 'none';
+    }
+    const originalLogout = window.doLogout || function () { };
+    window.doLogout = function () {
+      stopLiveMonitor();
+      originalLogout();
+      localStorage.removeItem('dt_session');
+      localStorage.removeItem('dt_user');
+      location.reload();
+    }
+    document.getElementById('q-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !this.disabled) {
+        exec();
+      }
+    });
+  </script>
+</body>
+
+</html>
