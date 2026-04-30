@@ -275,13 +275,28 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
         )
     return enriched
 
-<<<<<<< HEAD
+# ---------------------------------------------------------------------------
+# Resolve the project root once so all HTML routes use absolute paths.
+# On Vercel the CWD changes, so Path(__file__) is the only stable anchor.
+# ---------------------------------------------------------------------------
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+def _find_html(*candidates: Path) -> str:
+    """Return the contents of the first file that exists, or raise."""
+    for p in candidates:
+        if p.exists():
+            with open(p, "r", encoding="utf-8") as f:
+                return f.read()
+    raise FileNotFoundError(f"None found: {[str(c) for c in candidates]}")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     try:
-        current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "chat_ui.html", "r", encoding="utf-8") as f:
-            return f.read()
+        return _find_html(
+            _PROJECT_ROOT / "public" / "index.html",
+            _PROJECT_ROOT / "server" / "chat_ui.html",
+        )
     except Exception as e:
         return f"<html><body><h1>Error loading landing page</h1><p>Error: {str(e)}</p></body></html>"
 
@@ -289,32 +304,33 @@ async def root():
 @app.get("/dark_ops_login.html", response_class=HTMLResponse)
 async def login_page():
     try:
-        current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "dark_ops_login.html", "r", encoding="utf-8") as f:
-            return f.read()
+        return _find_html(
+            _PROJECT_ROOT / "public" / "login.html",
+            _PROJECT_ROOT / "server" / "dark_ops_login.html",
+        )
     except Exception as e:
         return f"<html><body><h1>Error loading login page</h1><p>Error: {str(e)}</p></body></html>"
 
 @app.get("/chat_ui", response_class=HTMLResponse)
 async def chat_page():
     try:
-        current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "chat_ui.html", "r", encoding="utf-8") as f:
-            return f.read()
+        return _find_html(
+            _PROJECT_ROOT / "public" / "index.html",
+            _PROJECT_ROOT / "server" / "chat_ui.html",
+        )
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
 
 @app.get("/chat_ui.html", response_class=HTMLResponse)
 async def chat_page_html():
     try:
-        current_dir = Path(__file__).resolve().parent
-        with open(current_dir / "chat_ui.html", "r", encoding="utf-8") as f:
-            return f.read()
+        return _find_html(
+            _PROJECT_ROOT / "public" / "index.html",
+            _PROJECT_ROOT / "server" / "chat_ui.html",
+        )
     except Exception as e:
         return f"<html><body><h1>Error loading chat page</h1><p>Error: {str(e)}</p></body></html>"
-=======
 
->>>>>>> 3e9b7f153fab2a6ca9c15927c3d2e4e00d8cc4db
 
 @app.get("/health")
 async def health():
@@ -1262,19 +1278,16 @@ async def verify_identity(payload: Dict[str, Any]):
     return {"ok": True, "request": row}
 
 
-<<<<<<< HEAD
 @app.get("/fact-wars")
 async def serve_fact_wars():
     try:
-        current_dir = Path(__file__).resolve().parent
-        file_path = current_dir / "static" / "fact_wars.html"
-        with open(file_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        return HTMLResponse(content=_find_html(
+            _PROJECT_ROOT / "public" / "fact_wars.html",
+            _PROJECT_ROOT / "static" / "fact_wars.html",
+        ))
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="fact_wars.html missing")
-=======
 
->>>>>>> 3e9b7f153fab2a6ca9c15927c3d2e4e00d8cc4db
 
 
 @app.post("/factwars/judge")
@@ -1306,8 +1319,8 @@ Write ONE sentence explaining why the winner had stronger evidence. Be specific.
 
     return {"winner": winner, "for_score": for_score, "against_score": against_score, "reason": reason}
 
-import os
-from fastapi.staticfiles import StaticFiles
-
-if os.path.isdir("public"):
-    app.mount("/", StaticFiles(directory="public", html=True), name="public")
+# Static file serving for assets in public/ (images, CSS, JS, etc.)
+# Mounted on /static to avoid shadowing API routes.
+_public_dir = _PROJECT_ROOT / "public"
+if _public_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_public_dir)), name="public-static")
