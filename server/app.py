@@ -291,40 +291,25 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
     return enriched
 
 # ---------------------------------------------------------------------------
-# HTML file resolver.  Files now live co-located at  server/public/  and
-# server/static/ — right next to this app.py.  _SERVER_DIR is the single
-# stable anchor:  Path(__file__).parent  →  /var/task/server/  on Vercel.
+# HTML file resolver — single anchor: Path(__file__).parent
+# Files live at server/public/ and server/static/, co-located with app.py.
+# On Vercel this resolves to /var/task/server/ — guaranteed by includeFiles.
 # ---------------------------------------------------------------------------
-_CWD = Path.cwd()
+_BASE = _SERVER_DIR   # Path(__file__).resolve().parent — the ONLY anchor
 
 def _find_html(filename: str) -> str:
-    """Find and return the contents of an HTML file.
-    Searches co-located directories first (guaranteed on Vercel),
-    then falls back to project-root layouts for legacy compat."""
+    """Locate an HTML file in public/ or static/ next to this app.py."""
     candidates = [
-        # 1st priority: co-located with app.py  (server/public/, server/static/)
-        _SERVER_DIR / "public" / filename,
-        _SERVER_DIR / "static" / filename,
-        _SERVER_DIR / filename,
-        # 2nd priority: project root layouts  (public/, static/)
-        _PROJECT_ROOT / "public" / filename,
-        _PROJECT_ROOT / "static" / filename,
-        _PROJECT_ROOT / filename,
-        # 3rd priority: CWD-relative  (covers edge cases)
-        _CWD / "public" / filename,
-        _CWD / "static" / filename,
-        _CWD / filename,
+        _BASE / "public" / filename,
+        _BASE / "static" / filename,
     ]
-    tried = []
     for p in candidates:
-        tried.append(str(p))
         if p.exists():
             with open(p, "r", encoding="utf-8") as f:
                 return f.read()
     raise FileNotFoundError(
-        f"{filename} not found. SERVER_DIR={_SERVER_DIR}, "
-        f"PROJECT_ROOT={_PROJECT_ROOT}, CWD={_CWD}. "
-        f"Tried: {tried}"
+        f"{filename} not found. BASE={_BASE}. "
+        f"Tried: {[str(c) for c in candidates]}"
     )
 
 
@@ -366,16 +351,12 @@ async def health():
 async def debug_paths():
     """Diagnostic endpoint — shows the runtime file layout."""
     import glob
-    html_files = []
-    for base in [_SERVER_DIR, _PROJECT_ROOT, _CWD]:
-        html_files.extend(glob.glob(str(base / "**" / "*.html"), recursive=True))
+    html_files = glob.glob(str(_BASE / "**" / "*.html"), recursive=True)
     return {
         "__file__": str(_THIS_FILE),
-        "server_dir": str(_SERVER_DIR),
-        "project_root": str(_PROJECT_ROOT),
-        "cwd": str(_CWD),
+        "base": str(_BASE),
         "sys_path_first_5": sys.path[:5],
-        "html_files_found": sorted(set(html_files))[:20],
+        "html_files_found": sorted(html_files),
     }
 
 @app.post("/research", response_model=ResearchReport)
@@ -1358,10 +1339,11 @@ Write ONE sentence explaining why the winner had stronger evidence. Be specific.
 
     return {"winner": winner, "for_score": for_score, "against_score": against_score, "reason": reason}
 
-# Static file serving for JS/CSS/images in server/public/ and server/static/
-_local_public = _SERVER_DIR / "public"
-_local_static = _SERVER_DIR / "static"
+# Static file serving for JS/CSS/images co-located with app.py
+_local_public = _BASE / "public"
+_local_static = _BASE / "static"
 if _local_static.is_dir():
     app.mount("/static", StaticFiles(directory=str(_local_static)), name="static-assets")
 if _local_public.is_dir():
-    app.mount("/public", StaticFiles(directory=str(_local_public)), name="public-assets")
+    app.mount("/public", StaticFiles(directory=str(_local_public)), name="public-assets")
+

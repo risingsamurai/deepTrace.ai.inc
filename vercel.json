@@ -11,8 +11,7 @@
           "research/**",
           "mcp/**",
           "memory/**",
-          "models.py",
-          ".env"
+          "models.py"
         ]
       }
     }
