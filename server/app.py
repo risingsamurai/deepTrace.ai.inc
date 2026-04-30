@@ -291,24 +291,31 @@ async def _enrich_sources_with_resurrection_and_freshness(query: str, sources: L
     return enriched
 
 # ---------------------------------------------------------------------------
-# HTML file resolver — single anchor: Path(__file__).parent
-# Files live at server/public/ and server/static/, co-located with app.py.
-# On Vercel this resolves to /var/task/server/ — guaranteed by includeFiles.
+# HTML file resolver — bulletproof for Vercel.
+#
+# BASE_DIR = Path(__file__).resolve().parent   →  /var/task/server/  on Vercel
+#
+# Search order:
+#   1. BASE_DIR / public / <file>          (primary — co-located with app.py)
+#   2. BASE_DIR / static / <file>          (secondary — static assets)
+#   3. /var/task/server/public / <file>    (hardcoded Vercel Lambda fallback)
 # ---------------------------------------------------------------------------
-_BASE = _SERVER_DIR   # Path(__file__).resolve().parent — the ONLY anchor
+BASE_DIR = Path(__file__).resolve().parent
+_VERCEL_FALLBACK = Path("/var/task/server/public")
 
 def _find_html(filename: str) -> str:
-    """Locate an HTML file in public/ or static/ next to this app.py."""
+    """Locate an HTML file. Checks co-located dirs first, then Vercel fallback."""
     candidates = [
-        _BASE / "public" / filename,
-        _BASE / "static" / filename,
+        BASE_DIR / "public" / filename,
+        BASE_DIR / "static" / filename,
+        _VERCEL_FALLBACK / filename,
     ]
     for p in candidates:
         if p.exists():
             with open(p, "r", encoding="utf-8") as f:
                 return f.read()
     raise FileNotFoundError(
-        f"{filename} not found. BASE={_BASE}. "
+        f"{filename} not found. BASE_DIR={BASE_DIR}. "
         f"Tried: {[str(c) for c in candidates]}"
     )
 
@@ -347,16 +354,27 @@ async def chat_page_html():
 async def health():
     return {"status": "ok", "agent": "DeepTrace", "version": "2.0.0"}
 
-@app.get("/debug/paths")
-async def debug_paths():
-    """Diagnostic endpoint — shows the runtime file layout."""
-    import glob
-    html_files = glob.glob(str(_BASE / "**" / "*.html"), recursive=True)
+@app.get("/debug/ls")
+async def debug_ls():
+    """Walk the deployed file tree — mandatory for diagnosing Vercel bundles."""
+    scan_root = Path("/var/task") if Path("/var/task").exists() else BASE_DIR.parent
+    tree = []
+    for dirpath, dirnames, filenames in os.walk(scan_root):
+        # Skip __pycache__ and .git noise
+        dirnames[:] = [d for d in dirnames if d not in ("__pycache__", ".git", "node_modules", ".venv")]
+        for fname in filenames:
+            full = os.path.join(dirpath, fname)
+            try:
+                size = os.path.getsize(full)
+            except OSError:
+                size = -1
+            tree.append({"path": full, "size": size})
     return {
-        "__file__": str(_THIS_FILE),
-        "base": str(_BASE),
-        "sys_path_first_5": sys.path[:5],
-        "html_files_found": sorted(html_files),
+        "__file__": str(Path(__file__).resolve()),
+        "BASE_DIR": str(BASE_DIR),
+        "scan_root": str(scan_root),
+        "total_files": len(tree),
+        "files": tree[:200],
     }
 
 @app.post("/research", response_model=ResearchReport)
@@ -1340,10 +1358,11 @@ Write ONE sentence explaining why the winner had stronger evidence. Be specific.
     return {"winner": winner, "for_score": for_score, "against_score": against_score, "reason": reason}
 
 # Static file serving for JS/CSS/images co-located with app.py
-_local_public = _BASE / "public"
-_local_static = _BASE / "static"
+_local_public = BASE_DIR / "public"
+_local_static = BASE_DIR / "static"
 if _local_static.is_dir():
     app.mount("/static", StaticFiles(directory=str(_local_static)), name="static-assets")
 if _local_public.is_dir():
     app.mount("/public", StaticFiles(directory=str(_local_public)), name="public-assets")
+
 

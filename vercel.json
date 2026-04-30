@@ -8,10 +8,10 @@
           "server/public/**",
           "server/static/**",
           "server/*.py",
+          "models.py",
           "research/**",
           "mcp/**",
-          "memory/**",
-          "models.py"
+          "memory/**"
         ]
       }
     }
