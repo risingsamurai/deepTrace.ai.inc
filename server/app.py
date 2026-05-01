@@ -1363,4 +1363,4 @@ if _local_static.is_dir():
 if _local_public.is_dir():
     app.mount("/public", StaticFiles(directory=str(_local_public)), name="public-assets")
 
-
+

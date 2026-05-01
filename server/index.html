@@ -924,6 +924,8 @@
       }
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 </head>
 
 <body>
@@ -1170,6 +1172,7 @@
 
   <script>
     let depth = 'standard', sessionId = 'dt-' + crypto.randomUUID().slice(0, 8), lastReport = null, mode = 'research', ghostMode = false;
+    let lastResearchResult = null;
     let activeStream = null;
     let isRunning = false;
     let liveMonitorInterval = null;
@@ -1202,15 +1205,14 @@
       localStorage.removeItem('dt_user');
       location.reload();
     }
-    function doExport() { if (lastReport && lastReport.session_id) { showExportOptions() } }
+    function doExport() { if (lastResearchResult || (lastReport && lastReport.session_id)) { showExportOptions() } }
     function showExportOptions() {
       const modal = document.createElement('div'); modal.id = 'export-modal'; modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center'; modal.innerHTML = `
 <div style="background:#1e2124;padding:30px;border-radius:8px;max-width:400px;width:90%;">
 <h3 style="margin:0 0 20px 0;color:#fff;">Export Research Report</h3>
-<button onclick="downloadFormat('pdf')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#00ff88;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Download PDF</button>
-<button onclick="downloadFormat('ppt')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#00ff88;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Download PPT</button>
-<button onclick="downloadFormat('markdown')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;">Download Markdown</button>
-<button onclick="getShareLink()" style="display:block;width:100%;padding:12px;margin:8px 0;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;">Get Share Link</button>
+<button onclick="downloadFormat('pdf')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#00ff88;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Export PDF</button>
+<button onclick="downloadFormat('ppt')" style="display:block;width:100%;padding:12px;margin:8px 0;background:#00ff88;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Export PPT</button>
+<button onclick="shareResearch()" style="display:block;width:100%;padding:12px;margin:8px 0;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Share Report</button>
 <button onclick="closeExportModal()" style="display:block;width:100%;padding:12px;margin:20px 0 0 0;background:#666;color:#fff;border:none;border-radius:4px;cursor:pointer;">Cancel</button>
 </div>`; document.body.appendChild(modal)
     }
@@ -1250,148 +1252,256 @@
       if(dropBtn) dropBtn.classList.remove('open');
     }
 
-    async function downloadFormat(format) { 
-      if (!lastReport) return;
+    async function downloadFormat(format) {
       closeExportModal();
-      
-      if (format === 'markdown') {
-        const url = '/research/export?session_id=' + lastReport.session_id + '&format=markdown'; 
-        const link = document.createElement('a'); link.href = url; link.download = 'deeptrace-report-' + lastReport.session_id.slice(0, 8) + '.md'; 
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        return;
+      if (!lastResearchResult) {
+        alert('Run a research query first before exporting.'); return
       }
-      
-      if (format === 'pdf') {
-        const modeLabel = localStorage.getItem('dt_mode') || 'standard';
-        const pdfContent = document.createElement('div');
-        pdfContent.style.padding = '40px';
-        pdfContent.style.fontFamily = 'Inter, sans-serif';
-        pdfContent.style.color = '#333';
-        pdfContent.style.background = '#fff';
-        
-        let chartsHtml = '';
-        if (lastReport.research_dna) chartsHtml += renderDNA(lastReport.research_dna);
-        const cons = extractConsensus(lastReport);
-        if (cons) chartsHtml += renderConsensus(cons);
+      if (format === 'pdf' && typeof html2pdf === 'undefined') {
+        alert('PDF library still loading, try again in 2 seconds.'); return
+      }
+      if (format === 'ppt' && typeof PptxGenJS === 'undefined') {
+        alert('PPT library still loading, try again in 2 seconds.'); return
+      }
 
-        pdfContent.innerHTML = `
-          <div style="height:1050px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
-            <h1 style="font-size:48px; color:#000; margin-bottom:20px;">DeepTrace Research</h1>
-            <h2 style="font-size:24px; color:#555; margin-bottom:40px; font-weight:normal;">${esc(lastReport.query)}</h2>
-            <div style="font-size:16px; color:#888; padding:10px 20px; border:2px solid #00ff88; border-radius:8px;">
-              DEPTH: ${modeLabel.toUpperCase()} | DATE: ${new Date().toLocaleDateString()}
+      const R = lastResearchResult
+      const query = R.query || 'Research Report'
+      const report = R.report || R.summary || ''
+      const findings = R.findings || (R.key_findings || []).map(f => ({finding: f, confidence: 'MED', score: 5}))
+      const sources = findings.flatMap(f => f.sources || [])
+      const allSources = [...(R.citations || R.sources || []).map(s => s.url || s.link || s), ...sources.map(s => s.url || s)]
+      const uniqueSources = [...new Set(allSources.filter(Boolean))]
+      const followups = R.followup_questions || R.suggested_followups || []
+      const overallConf = R.overall_confidence || (findings[0] && findings[0].confidence) || 'N/A'
+      const date = new Date().toLocaleString()
+      const dna = (R.research_dna && R.research_dna.hash) || (R.session_id && R.session_id.slice(0,16)) || 'N/A'
+      const highFindings = findings.filter(f => f.confidence === 'HIGH')
+      const medFindings = findings.filter(f => f.confidence === 'MED')
+      const lowFindings = findings.filter(f => f.confidence === 'LOW')
+      const conflicts = R.conflicts || findings.filter(f => f.conflict || (f.note && f.note.toLowerCase().includes('conflict')))
+      
+      // ─────────────────────────────────────────────
+      // PDF EXPORT
+      // ─────────────────────────────────────────────
+      if (format === 'pdf') {
+        const findingHTML = (f, i) => `
+          <div style="margin-bottom:14px;padding:14px 16px;
+            border-left:4px solid ${f.confidence==='HIGH'?'#00c853':f.confidence==='MED'?'#ffab00':'#ff5252'};
+            background:${f.confidence==='HIGH'?'#f1fff6':f.confidence==='MED'?'#fffdf0':'#fff5f5'};
+            border-radius:0 8px 8px 0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-weight:700;color:#111;font-size:12px;">Finding ${i+1}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;
+                background:${f.confidence==='HIGH'?'#00c853':f.confidence==='MED'?'#ffab00':'#ff5252'};
+                color:#fff;">${f.confidence} · ${f.score || '?'}/10</span>
+            </div>
+            <p style="margin:0;color:#222;font-size:11.5px;line-height:1.7;">${f.finding}</p>
+            ${f.sources&&f.sources.length?`<p style="margin:8px 0 0;font-size:10px;color:#888;">
+              Sources: ${f.sources.map(s=>s.url||s).join(' · ')}</p>`:''}
+          </div>`;
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:fixed;top:0;left:0;width:794px;background:#fff;font-family:Arial,sans-serif;z-index:-1;opacity:0;pointer-events:none;';
+        wrapper.innerHTML = `
+          <div style="background:#0a0a0a;padding:50px 50px 40px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+              <div style="width:10px;height:10px;background:#00ff88;border-radius:50%;"></div>
+              <span style="color:#00ff88;font-size:10px;font-weight:700;letter-spacing:3px;">DEEPTRACE RESEARCH REPORT</span>
+            </div>
+            <h1 style="color:#fff;font-size:24px;font-weight:700;margin:0 0 18px;line-height:1.35;">${query}</h1>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+              <span style="color:#666;font-size:10px;">Date: ${date}</span>
+              <span style="color:#666;font-size:10px;">Findings: ${findings.length}</span>
+              <span style="color:#666;font-size:10px;">Sources: ${uniqueSources.length}</span>
+              <span style="color:#666;font-size:10px;">Confidence: ${overallConf}</span>
             </div>
           </div>
-          <div style="page-break-before: always;"></div>
-          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Executive Summary</h2>
-          <p style="font-size:14px; line-height:1.6; margin-bottom:30px;">${esc(lastReport.summary)}</p>
-          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Key Findings</h2>
-          <ul style="font-size:14px; line-height:1.6; padding-left:20px; margin-bottom:30px;">
-            ${(lastReport.key_findings || []).map(f => `<li style="margin-bottom:10px;">${esc(f)}</li>`).join('')}
-          </ul>
-          <div style="page-break-before: always;"></div>
-          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Advanced Analytics</h2>
-          <div style="background:#0a0a0a; color:#fff; padding:20px; border-radius:8px;">${chartsHtml}</div>
-          <div style="page-break-before: always;"></div>
-          <h2 style="color:#000; border-bottom:2px solid #00ff88; padding-bottom:10px;">Sources & Citations</h2>
-          <div style="font-size:12px; line-height:1.5;">
-            ${(lastReport.citations || lastReport.sources || []).map(c => {
-              const url = c.url || c.link || c || '';
-              const title = c.title || url;
-              return `<div style="margin-bottom:15px;"><strong>${esc(title)}</strong><br/><a href="${esc(url)}" style="color:#0066cc;">${esc(url)}</a></div>`;
-            }).join('')}
-          </div>
-        `;
-        
-        const opt = {
-          margin: [0.5, 0.5, 0.8, 0.5],
-          filename: `deeptrace-${lastReport.session_id.slice(0,8)}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(pdfContent).toPdf().get('pdf').then(function (pdf) {
-          const totalPages = pdf.internal.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFontSize(10);
-            pdf.setTextColor(150);
-            pdf.text('Page ' + i + ' of ' + totalPages, pdf.internal.pageSize.getWidth() - 1, pdf.internal.pageSize.getHeight() - 0.4);
-          }
-        }).save();
+          <div style="padding:36px 50px;">
+            <div style="display:flex;gap:10px;margin-bottom:32px;">
+              <div style="flex:1;padding:14px;background:#f1fff6;border:2px solid #00c853;border-radius:10px;text-align:center;">
+                <div style="font-size:26px;font-weight:700;color:#00c853;">${highFindings.length}</div>
+                <div style="font-size:10px;color:#555;margin-top:3px;font-weight:600;">HIGH</div>
+              </div>
+              <div style="flex:1;padding:14px;background:#fffdf0;border:2px solid #ffab00;border-radius:10px;text-align:center;">
+                <div style="font-size:26px;font-weight:700;color:#ffab00;">${medFindings.length}</div>
+                <div style="font-size:10px;color:#555;margin-top:3px;font-weight:600;">MED</div>
+              </div>
+              <div style="flex:1;padding:14px;background:#fff5f5;border:2px solid #ff5252;border-radius:10px;text-align:center;">
+                <div style="font-size:26px;font-weight:700;color:#ff5252;">${lowFindings.length}</div>
+                <div style="font-size:10px;color:#555;margin-top:3px;font-weight:600;">LOW</div>
+              </div>
+              <div style="flex:1;padding:14px;background:#f0f0ff;border:2px solid #6366f1;border-radius:10px;text-align:center;">
+                <div style="font-size:26px;font-weight:700;color:#6366f1;">${uniqueSources.length}</div>
+                <div style="font-size:10px;color:#555;margin-top:3px;font-weight:600;">SOURCES</div>
+              </div>
+            </div>
+            <div style="border-left:4px solid #00ff88;padding-left:16px;margin-bottom:28px;">
+              <h2 style="font-size:13px;font-weight:700;color:#111;letter-spacing:1px;margin:0 0 10px;">EXECUTIVE SUMMARY</h2>
+              <div style="background:#f8f8f8;border-radius:8px;padding:14px;font-size:11.5px;line-height:1.8;color:#333;">${report.slice(0,700)}</div>
+            </div>
+            <div style="border-left:4px solid #f59e0b;padding-left:16px;margin-bottom:28px;">
+              <h2 style="font-size:13px;font-weight:700;color:#111;letter-spacing:1px;margin:0 0 14px;">KEY FINDINGS</h2>
+              ${findings.map((f,i) => findingHTML(f,i)).join('')}
+            </div>
+            ${conflicts.length ? `
+            <div style="border-left:4px solid #ef4444;padding-left:16px;margin-bottom:28px;">
+              <h2 style="font-size:13px;font-weight:700;color:#111;letter-spacing:1px;margin:0 0 12px;">CONFLICTS DETECTED</h2>
+              ${conflicts.map(c=>`
+                <div style="padding:10px 14px;margin-bottom:8px;background:#fff5f5;border-radius:8px;font-size:11px;color:#c00;line-height:1.6;">
+                  &#9888; ${c.finding || c.note || c}
+                </div>`).join('')}
+            </div>` : ''}
+            ${uniqueSources.length ? `
+            <div style="border-left:4px solid #10b981;padding-left:16px;margin-bottom:28px;">
+              <h2 style="font-size:13px;font-weight:700;color:#111;letter-spacing:1px;margin:0 0 10px;">SOURCES &amp; REFERENCES</h2>
+              ${uniqueSources.map((s,i)=>`
+                <div style="padding:6px 0;border-bottom:1px solid #eee;font-size:10.5px;color:#1a73e8;">[${i+1}] ${s}</div>`).join('')}
+            </div>` : ''}
+            ${followups.length ? `
+            <div style="border-left:4px solid #8b5cf6;padding-left:16px;margin-bottom:28px;">
+              <h2 style="font-size:13px;font-weight:700;color:#111;letter-spacing:1px;margin:0 0 10px;">FOLLOW-UP QUERIES</h2>
+              ${followups.map(q=>`
+                <div style="padding:7px 12px;margin:4px 0;background:#f5f5ff;border-radius:6px;font-size:11px;color:#444;">&rarr; ${q}</div>`).join('')}
+            </div>` : ''}
+            <div style="background:#0a0a0a;border-radius:10px;padding:18px;margin-bottom:10px;">
+              <h2 style="font-size:10px;font-weight:700;color:#06b6d4;letter-spacing:2px;margin:0 0 10px;">RESEARCH DNA</h2>
+              <div style="color:#888;font-size:9px;margin-bottom:3px;">FINGERPRINT HASH</div>
+              <div style="color:#00ff88;font-family:monospace;font-size:11px;margin-bottom:10px;">${dna}</div>
+              <div style="color:#888;font-size:9px;margin-bottom:3px;">SOURCES VERIFIED</div>
+              <div style="color:#06b6d4;font-size:11px;margin-bottom:10px;">${uniqueSources.length} sources analyzed</div>
+              <div style="color:#555;font-size:9px;">Generated by DeepTrace AI Research Engine · ${date}</div>
+            </div>
+          </div>`;
+
+        document.body.appendChild(wrapper);
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 400)));
+        try {
+          await html2pdf().set({
+            margin: 0,
+            filename: `DeepTrace-Research-${new Date().toISOString().slice(0,10)}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, width: 794, windowWidth: 794 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          }).from(wrapper).save();
+        } finally {
+          document.body.removeChild(wrapper);
+        }
         return;
       }
       
+      // ─────────────────────────────────────────────
+      // PPT EXPORT
+      // ─────────────────────────────────────────────
       if (format === 'ppt') {
         const pptx = new PptxGenJS();
-        pptx.layout = 'LAYOUT_16x9';
-        pptx.defineSlideMaster({
-          title: 'MASTER_SLIDE',
-          background: { color: '0a0a0a' },
-          objects: [
-            { text: { text: 'DeepTrace Autonomous Research', options: { x: 0.5, y: 0.2, w: 5, h: 0.3, color: '00ff88', fontSize: 12 } } },
-            { rect: { x: 0, y: 0, w: '100%', h: 0.05, fill: { color: '00ff88' } } }
-          ]
+        pptx.layout = 'LAYOUT_WIDE';
+
+        var s1 = pptx.addSlide();
+        s1.background = { color: '0a0a0a' };
+        s1.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:0.5, fill:{ color:'00ff88' } });
+        s1.addText('DEEPTRACE', { x:0.5, y:0.8, w:'90%', h:0.9, fontSize:44, bold:true, color:'00ff88', align:'center' });
+        s1.addText('RESEARCH REPORT', { x:0.5, y:1.8, w:'90%', h:0.5, fontSize:17, color:'ffffff', align:'center', charSpacing:5 });
+        s1.addText(query, { x:0.8, y:2.55, w:'85%', h:1.2, fontSize:14, color:'aaaaaa', align:'center', italic:true, wrap:true });
+        s1.addText(date+'  |  '+findings.length+' Findings  |  '+uniqueSources.length+' Sources  |  Confidence: '+overallConf, { x:0.5, y:4.2, w:'90%', h:0.35, fontSize:10, color:'555555', align:'center' });
+
+        var s2 = pptx.addSlide();
+        s2.background = { color: '0d0d0d' };
+        s2.addText('CONFIDENCE OVERVIEW', { x:0.5, y:0.2, w:'90%', h:0.4, fontSize:12, bold:true, color:'00ff88', charSpacing:3 });
+        var confBoxes = [
+          { label:'HIGH', count:highFindings.length, color:'00c853', bg:'0d2b0d', x:0.5 },
+          { label:'MED', count:medFindings.length, color:'ffab00', bg:'2b2200', x:3.0 },
+          { label:'LOW', count:lowFindings.length, color:'ff5252', bg:'2b0000', x:5.5 },
+          { label:'SOURCES', count:uniqueSources.length, color:'6366f1', bg:'0d0d2b', x:8.0 }
+        ];
+        confBoxes.forEach(function(b) {
+          s2.addShape(pptx.ShapeType.rect, { x:b.x, y:0.75, w:2.2, h:1.3, fill:{ color:b.bg }, line:{ color:b.color, width:1.5 }, rectRadius:0.08 });
+          s2.addText(''+b.count, { x:b.x, y:0.85, w:2.2, h:0.7, fontSize:34, bold:true, color:b.color, align:'center' });
+          s2.addText(b.label, { x:b.x, y:1.55, w:2.2, h:0.35, fontSize:9, color:b.color, align:'center', bold:true, charSpacing:2 });
+        });
+        s2.addText('EXECUTIVE SUMMARY', { x:0.5, y:2.25, w:'90%', h:0.3, fontSize:10, bold:true, color:'888888', charSpacing:2 });
+        s2.addText(report.slice(0,550), { x:0.5, y:2.65, w:'90%', h:1.9, fontSize:10.5, color:'dddddd', wrap:true, valign:'top', lineSpacingMultiple:1.4 });
+
+        findings.forEach(function(f, i) {
+          var fs = pptx.addSlide();
+          fs.background = { color: '0d0d0d' };
+          var cc = f.confidence==='HIGH'?'00c853':f.confidence==='MED'?'ffab00':'ff5252';
+          fs.addShape(pptx.ShapeType.rect, { x:0, y:0, w:0.07, h:'100%', fill:{ color:cc } });
+          fs.addText('FINDING '+(i+1)+' OF '+findings.length, { x:0.3, y:0.18, w:'80%', h:0.3, fontSize:9, color:'666666', charSpacing:2 });
+          fs.addShape(pptx.ShapeType.rect, { x:9.1, y:0.12, w:1.4, h:0.38, fill:{ color:cc }, rectRadius:0.05 });
+          fs.addText(f.confidence+' | '+(f.score||'?')+'/10', { x:9.1, y:0.12, w:1.4, h:0.38, fontSize:9, bold:true, color:'000000', align:'center' });
+          fs.addText(f.finding, { x:0.3, y:0.65, w:'90%', h:2.6, fontSize:12.5, color:'ffffff', wrap:true, valign:'top', lineSpacingMultiple:1.45 });
+          if (f.sources && f.sources.length) {
+            fs.addText('SOURCES', { x:0.3, y:3.4, w:'90%', h:0.28, fontSize:8.5, color:'555555', charSpacing:2, bold:true });
+            fs.addText(f.sources.map(function(s){ return '* '+(s.url||s); }).join('\n'), { x:0.3, y:3.75, w:'90%', h:1.0, fontSize:8.5, color:'4488ff', wrap:true });
+          }
         });
 
-        const modeLabel = localStorage.getItem('dt_mode') || 'standard';
-
-        let slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-        slide.addText('RESEARCH REPORT', { x: 1, y: 2, w: '80%', fontSize: 44, color: 'ffffff', bold: true });
-        slide.addText(lastReport.query, { x: 1, y: 3, w: '80%', fontSize: 24, color: 'cccccc' });
-        slide.addText(`DEPTH: ${modeLabel.toUpperCase()} | ${new Date().toLocaleDateString()}`, { x: 1, y: 4, w: '80%', fontSize: 16, color: '00ff88' });
-
-        slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-        slide.addText('Executive Summary', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
-        slide.addText(lastReport.summary, { x: 0.5, y: 1.5, w: '90%', fontSize: 18, color: 'ffffff' });
-
-        (lastReport.key_findings || []).forEach((finding, idx) => {
-          let fSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-          fSlide.addText(`Key Finding ${idx + 1}`, { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
-          fSlide.addText(finding, { x: 0.5, y: 1.8, w: '90%', fontSize: 20, color: 'ffffff' });
-        });
-        
-        const offscreen = document.createElement('div');
-        offscreen.style.position = 'absolute';
-        offscreen.style.left = '-9999px';
-        offscreen.style.width = '800px';
-        offscreen.style.background = '#0a0a0a';
-        offscreen.style.color = '#fff';
-        offscreen.style.padding = '20px';
-        
-        let chartsHtml = '';
-        if (lastReport.research_dna) chartsHtml += renderDNA(lastReport.research_dna);
-        const cons = extractConsensus(lastReport);
-        if (cons) chartsHtml += renderConsensus(cons);
-        offscreen.innerHTML = chartsHtml;
-        document.body.appendChild(offscreen);
-
-        html2canvas(offscreen, { backgroundColor: '#0a0a0a' }).then(canvas => {
-          const imgData = canvas.toDataURL('image/png');
-          document.body.removeChild(offscreen);
-          
-          let cSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-          cSlide.addText('Advanced Analytics', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
-          cSlide.addImage({ data: imgData, x: 1, y: 1.5, w: 8, h: (8 * canvas.height / canvas.width) });
-
-          let sSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-          sSlide.addText('Sources & Citations', { x: 0.5, y: 0.8, w: '90%', fontSize: 28, color: '00ff88', bold: true });
-          let yPos = 1.5;
-          (lastReport.citations || lastReport.sources || []).slice(0, 5).forEach(c => {
-            const url = c.url || c.link || c || '';
-            const title = (c.title || url).slice(0, 80);
-            sSlide.addText(title, { x: 0.5, y: yPos, w: '90%', fontSize: 14, color: 'ffffff', bold: true });
-            yPos += 0.3;
-            sSlide.addText(url, { x: 0.5, y: yPos, w: '90%', fontSize: 12, color: '00ff88', hyperlink: { url: url } });
-            yPos += 0.5;
+        if (conflicts.length) {
+          var cs = pptx.addSlide();
+          cs.background = { color: '0d0d0d' };
+          cs.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:0.08, fill:{ color:'ef4444' } });
+          cs.addText('CONFLICTS DETECTED', { x:0.5, y:0.25, w:'90%', h:0.4, fontSize:12, bold:true, color:'ef4444', charSpacing:3 });
+          conflicts.forEach(function(c, i) {
+            cs.addShape(pptx.ShapeType.rect, { x:0.5, y:0.85+i*0.9, w:'90%', h:0.72, fill:{ color:'1a0000' }, line:{ color:'7f1d1d', width:1 }, rectRadius:0.06 });
+            cs.addText('! '+(c.finding||c.note||c), { x:0.7, y:0.9+i*0.9, w:'85%', h:0.62, fontSize:10.5, color:'fca5a5', wrap:true });
           });
+        }
 
-          pptx.writeFile({ fileName: `deeptrace-${lastReport.session_id.slice(0,8)}.pptx` });
-        });
+        if (uniqueSources.length) {
+          var ss = pptx.addSlide();
+          ss.background = { color: '0d0d0d' };
+          ss.addText('SOURCES & REFERENCES', { x:0.5, y:0.22, w:'90%', h:0.4, fontSize:12, bold:true, color:'10b981', charSpacing:3 });
+          ss.addText(uniqueSources.map(function(s,i){ return '['+(i+1)+']  '+s; }).join('\n'), { x:0.5, y:0.8, w:'90%', h:4.5, fontSize:9, color:'aaaaaa', wrap:true, valign:'top', lineSpacingMultiple:1.6 });
+        }
+
+        if (followups.length) {
+          var fqs = pptx.addSlide();
+          fqs.background = { color: '0d0d0d' };
+          fqs.addText('FOLLOW-UP QUERIES', { x:0.5, y:0.22, w:'90%', h:0.4, fontSize:12, bold:true, color:'8b5cf6', charSpacing:3 });
+          followups.slice(0,6).forEach(function(q, i) {
+            fqs.addShape(pptx.ShapeType.rect, { x:0.5, y:0.8+i*0.72, w:'90%', h:0.58, fill:{ color:'1a1a2e' }, line:{ color:'3730a3', width:1 }, rectRadius:0.06 });
+            fqs.addText('-> '+q, { x:0.7, y:0.85+i*0.72, w:'85%', h:0.48, fontSize:11, color:'c4b5fd', wrap:true });
+          });
+        }
+
+        var ds = pptx.addSlide();
+        ds.background = { color: '050510' };
+        ds.addText('RESEARCH DNA', { x:0.5, y:0.25, w:'90%', h:0.4, fontSize:12, bold:true, color:'06b6d4', charSpacing:3 });
+        ds.addShape(pptx.ShapeType.rect, { x:0.5, y:0.85, w:'90%', h:3.2, fill:{ color:'0a0a1a' }, line:{ color:'1e293b', width:1 }, rectRadius:0.1 });
+        ds.addText('FINGERPRINT HASH', { x:1.0, y:1.1, w:8, h:0.3, fontSize:8.5, color:'555555', charSpacing:2 });
+        ds.addText(dna, { x:1.0, y:1.48, w:9, h:0.4, fontSize:13, color:'00ff88', fontFace:'Courier New', bold:true });
+        ds.addText('SOURCES VERIFIED', { x:1.0, y:2.1, w:4, h:0.28, fontSize:8.5, color:'555555', charSpacing:2 });
+        ds.addText(uniqueSources.length+' sources analyzed', { x:1.0, y:2.45, w:4, h:0.35, fontSize:12, color:'06b6d4' });
+        ds.addText('GENERATED', { x:5.5, y:2.1, w:4, h:0.28, fontSize:8.5, color:'555555', charSpacing:2 });
+        ds.addText(date, { x:5.5, y:2.45, w:4.5, h:0.35, fontSize:12, color:'06b6d4' });
+        ds.addText('CONFIDENCE LEVEL', { x:1.0, y:3.05, w:4, h:0.28, fontSize:8.5, color:'555555', charSpacing:2 });
+        ds.addText(String(overallConf), { x:1.0, y:3.38, w:4, h:0.35, fontSize:12, color:'00ff88', bold:true });
+        ds.addText('Generated by DeepTrace AI Research Engine', { x:0.5, y:4.5, w:'90%', h:0.3, fontSize:9, color:'333333', align:'center' });
+
+        await pptx.writeFile({ fileName: 'DeepTrace-Research-'+new Date().toISOString().slice(0,10)+'.pptx' });
       }
     }
 
-    async function getShareLink() { try { const r = await fetch('/research/share/' + lastReport.session_id); const d = await r.json(); if (d.share_url) { navigator.clipboard.writeText(d.share_url); alert('Share link copied to clipboard!') } else alert('Failed to generate share link') } catch (e) { alert('Error generating share link') } closeExportModal() }
+    // ─────────────────────────────────────────────
+    // SHARE RESEARCH
+    // ─────────────────────────────────────────────
+    async function shareResearch() {
+      closeExportModal();
+      if (!lastResearchResult || !lastResearchResult.session_id) {
+        alert('Run a research query first before sharing.'); return;
+      }
+      try {
+        const res = await fetch('/research/share/' + lastResearchResult.session_id);
+        const data = await res.json();
+        const shareUrl = data.share_url || (window.location.origin + '/shared/' + lastResearchResult.session_id);
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Share link copied to clipboard!\n\n' + shareUrl);
+      } catch (e) {
+        const fallback = window.location.origin + '/shared/' + lastResearchResult.session_id;
+        await navigator.clipboard.writeText(fallback);
+        alert('Share link copied!\n\n' + fallback);
+      }
+    }
     function applyChip(el) { document.getElementById('q-input').value = el.textContent }
 
     function setDepth(el) { document.querySelectorAll('.d-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); depth = el.dataset.d; const c = depthCfg[depth]; document.getElementById('est-info').textContent = c.t + ' // ' + c.s + ' SOURCES' }
@@ -1512,6 +1622,7 @@
             activeStream.close();
             activeStream = null;
             lastReport = d.report;
+            lastResearchResult = d.report;
             renderFullReport(d.report);
             resetUI();
             loadSessions();
